@@ -1,0 +1,14 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <Nullable>enable</Nullable>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Lash.Users.Messaging\Lash.Users.Messaging.csproj" />
+    <ProjectReference Include="..\Lash.Users.Domain\Lash.Users.Domain.csproj" />
+  </ItemGroup>
+
+</Project>
