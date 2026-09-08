@@ -22,7 +22,7 @@ public sealed class RefreshSessionTests
         var revokedAt = session.CreatedAt.AddMinutes(1);
 
         var firstResult = session.Revoke(revokedAt);
-        var secondResult = session.Revoke(revokedAt.AddMinutes(1));
+        var secondResult = session.Revoke(session.CreatedAt.AddTicks(-1));
 
         Assert.True(firstResult.IsSuccess);
         Assert.True(secondResult.IsSuccess);

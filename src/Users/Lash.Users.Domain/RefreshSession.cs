@@ -58,14 +58,14 @@ public sealed class RefreshSession
 
     public UnitResult<Error> Revoke(DateTimeOffset revokedAt)
     {
-        if (revokedAt < CreatedAt)
-        {
-            return UnitResult.Failure(GeneralErrors.ValueIsInvalid(nameof(revokedAt)));
-        }
-
         if (IsRevoked)
         {
             return UnitResult.Success<Error>();
+        }
+
+        if (revokedAt < CreatedAt)
+        {
+            return UnitResult.Failure(GeneralErrors.ValueIsInvalid(nameof(revokedAt)));
         }
 
         RevokedAt = revokedAt;
