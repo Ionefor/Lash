@@ -13,32 +13,27 @@ public sealed class User : IdentityUser<Guid>
     {
     }
 
-    private User(string userName, string email, Role role)
+    private User(string email, Role role)
     {
         Id = Guid.NewGuid();
-        UserName = userName;
+        UserName = email;
         Email = email;
         _roles.Add(role);
     }
 
     public IReadOnlyCollection<Role> Roles => _roles;
 
-    public static Result<User, Error> RegisterClient(string userName, string email, Role role) =>
-        Create(userName, email, role, RoleNames.Client);
+    public static Result<User, Error> RegisterClient(string email, Role role) =>
+        Create(email, role, RoleNames.Client);
 
-    public static Result<User, Error> RegisterMaster(string userName, string email, Role role) =>
-        Create(userName, email, role, RoleNames.Master);
+    public static Result<User, Error> RegisterMaster(string email, Role role) =>
+        Create(email, role, RoleNames.Master);
 
-    public static Result<User, Error> CreateAdmin(string userName, string email, Role role) =>
-        Create(userName, email, role, RoleNames.Admin);
+    public static Result<User, Error> CreateAdmin(string email, Role role) =>
+        Create(email, role, RoleNames.Admin);
 
-    private static Result<User, Error> Create(string userName, string email, Role? role, string requiredRoleName)
+    private static Result<User, Error> Create(string email, Role? role, string requiredRoleName)
     {
-        if (string.IsNullOrWhiteSpace(userName))
-        {
-            return Result.Failure<User, Error>(GeneralErrors.ValueIsRequired(nameof(UserName)));
-        }
-
         if (string.IsNullOrWhiteSpace(email))
         {
             return Result.Failure<User, Error>(GeneralErrors.ValueIsRequired(nameof(Email)));
@@ -49,6 +44,6 @@ public sealed class User : IdentityUser<Guid>
             return Result.Failure<User, Error>(AuthErrors.RoleIsInvalid(requiredRoleName));
         }
 
-        return Result.Success<User, Error>(new User(userName, email, role));
+        return Result.Success<User, Error>(new User(email, role));
     }
 }

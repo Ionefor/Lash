@@ -10,6 +10,7 @@
 
   <ItemGroup>
     <PackageReference Include="Microsoft.NET.Test.Sdk" Version="18.9.0" />
+    <PackageReference Include="Moq" Version="4.20.72" />
     <PackageReference Include="xunit" Version="2.9.3" />
     <PackageReference Include="xunit.runner.visualstudio" Version="3.1.5">
       <PrivateAssets>all</PrivateAssets>
@@ -18,7 +19,10 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\..\..\src\Users\Lash.Users.Application\Lash.Users.Application.csproj" />
     <ProjectReference Include="..\..\..\src\Users\Lash.Users.Domain\Lash.Users.Domain.csproj" />
+    <ProjectReference Include="..\..\..\src\Users\Lash.Users.Infrastructure\Lash.Users.Infrastructure.csproj" />
+    <ProjectReference Include="..\..\..\src\Users\Lash.Users.Presentation\Lash.Users.Presentation.csproj" />
   </ItemGroup>
 
 </Project>

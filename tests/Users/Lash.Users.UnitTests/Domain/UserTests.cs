@@ -6,28 +6,28 @@ namespace Lash.Users.UnitTests.Domain;
 public sealed class UserTests
 {
     [Fact]
-    public void RegisterClient_WhenClientRoleProvided_ReturnsUserWithRole()
+    public void RegisterClient_WhenClientRoleProvided_ReturnsUserWithEmailAsUserName()
     {
         var role = CreateRole(RoleNames.Client);
 
-        var result = User.RegisterClient("client", "client@example.com", role);
+        var result = User.RegisterClient("client@example.com", role);
 
         Assert.True(result.IsSuccess);
-        Assert.Equal("client", result.Value.UserName);
+        Assert.Equal("client@example.com", result.Value.UserName);
         Assert.Equal("client@example.com", result.Value.Email);
         Assert.Contains(role, result.Value.Roles);
     }
 
     [Fact]
-    public void RegisterClient_WhenUserNameMissing_ReturnsRequiredValueError()
+    public void RegisterClient_WhenEmailMissing_ReturnsRequiredValueError()
     {
         var role = CreateRole(RoleNames.Client);
 
-        var result = User.RegisterClient(" ", "client@example.com", role);
+        var result = User.RegisterClient(" ", role);
 
         Assert.True(result.IsFailure);
         Assert.Equal(GeneralErrorCodes.ValueIsRequired, result.Error.Code);
-        Assert.Equal(nameof(User.UserName), result.Error.Target);
+        Assert.Equal(nameof(User.Email), result.Error.Target);
     }
 
     [Fact]
@@ -35,7 +35,7 @@ public sealed class UserTests
     {
         var role = CreateRole(RoleNames.Master);
 
-        var result = User.RegisterClient("client", "client@example.com", role);
+        var result = User.RegisterClient("client@example.com", role);
 
         Assert.True(result.IsFailure);
         Assert.Equal(AuthErrorCodes.RoleInvalid, result.Error.Code);

@@ -7,6 +7,10 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <PackageReference Include="WebFlow.AspNetCore" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
     <ProjectReference Include="..\Lash.Users.Application\Lash.Users.Application.csproj" />
   </ItemGroup>
 
