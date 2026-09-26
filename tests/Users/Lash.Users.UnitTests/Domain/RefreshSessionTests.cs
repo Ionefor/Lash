@@ -30,6 +30,29 @@ public sealed class RefreshSessionTests
         Assert.Equal(revokedAt, session.RevokedAt);
     }
 
+    [Fact]
+    public void EnsureActive_WhenSessionIsExpired_ReturnsRefreshTokenExpiredError()
+    {
+        var session = CreateSession();
+
+        var result = session.EnsureActive(session.ExpiresAt);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.RefreshTokenExpired, result.Error.Code);
+    }
+
+    [Fact]
+    public void EnsureActive_WhenSessionIsRevoked_ReturnsRefreshTokenInvalidError()
+    {
+        var session = CreateSession();
+        session.Revoke(session.CreatedAt);
+
+        var result = session.EnsureActive(session.CreatedAt);
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.RefreshTokenInvalid, result.Error.Code);
+    }
+
     private static RefreshSession CreateSession()
     {
         var result = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "token-hash", DateTimeOffset.MaxValue);

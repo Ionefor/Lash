@@ -11,6 +11,7 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options)
     public DbSet<Permission> Permissions => Set<Permission>();
     public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
+    public DbSet<IdentityEmailRequest> IdentityEmailRequests => Set<IdentityEmailRequest>();
 
     protected override void OnModelCreating(ModelBuilder builder)
     {

@@ -33,6 +33,7 @@ public sealed class UsersDbContextTests
 
         var permission = context.Model.FindEntityType(typeof(Permission))!;
         var refreshSession = context.Model.FindEntityType(typeof(RefreshSession))!;
+        var identityEmailRequest = context.Model.FindEntityType(typeof(IdentityEmailRequest))!;
         var rolePermission = context.Model.FindEntityType(typeof(RolePermission))!;
 
         Assert.NotNull(permission);
@@ -44,6 +45,10 @@ public sealed class UsersDbContextTests
         Assert.Equal("refresh_sessions", refreshSession!.GetTableName());
         Assert.Contains(refreshSession.GetIndexes(), index =>
             index.IsUnique && index.Properties.Single().Name == nameof(RefreshSession.Jti));
+        Assert.Equal("identity_email_requests", identityEmailRequest!.GetTableName());
+        Assert.Contains(identityEmailRequest.GetIndexes(), index =>
+            index.Properties.Select(property => property.Name).SequenceEqual(
+                [nameof(IdentityEmailRequest.EmailHash), nameof(IdentityEmailRequest.Operation), nameof(IdentityEmailRequest.RequestedAt)]));
         Assert.Equal("role_permissions", rolePermission!.GetTableName());
         Assert.Equal(
             [nameof(RolePermission.RoleId), nameof(RolePermission.PermissionId)],
