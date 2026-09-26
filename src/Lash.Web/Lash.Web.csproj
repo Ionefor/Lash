@@ -1,0 +1,21 @@
+<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net10.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>e5657e41-cc4b-4d97-8db4-e4c2a4bb8dbd</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ErrorsFlow" Version="2.0.1" />
+    <PackageReference Include="WebFlow.AspNetCore" Version="2.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Users\Lash.Users.Application\Lash.Users.Application.csproj" />
+    <ProjectReference Include="..\Users\Lash.Users.Infrastructure\Lash.Users.Infrastructure.csproj" />
+    <ProjectReference Include="..\Users\Lash.Users.Presentation\Lash.Users.Presentation.csproj" />
+  </ItemGroup>
+
+</Project>

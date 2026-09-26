@@ -1,6 +1,10 @@
 using Lash.Users.Application.Features.Commands.RegisterClient;
+using Lash.Users.Application.Abstractions;
+using Lash.Users.Application.Errors;
 using Lash.Users.Domain;
+using CSharpFunctionalExtensions;
 using ErrorsFlow.Errors;
+using ErrorsFlow.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -16,6 +20,7 @@ public sealed class RegisterClientHandlerTests
         var role = CreateRole(RoleNames.Client);
         var userManager = CreateUserManager();
         var roleManager = CreateRoleManager();
+        var emailConfirmationSender = CreateEmailConfirmationSender();
         User? createdUser = null;
 
         roleManager.Setup(manager => manager.FindByNameAsync(RoleNames.Client))
@@ -27,7 +32,8 @@ public sealed class RegisterClientHandlerTests
         var handler = new RegisterClientHandler(
             new RegisterClientCommandValidator(),
             userManager.Object,
-            roleManager.Object);
+            roleManager.Object,
+            emailConfirmationSender.Object);
 
         var result = await handler.Handle(new RegisterClientCommand(
             "client@example.com",
@@ -40,6 +46,9 @@ public sealed class RegisterClientHandlerTests
         Assert.Equal("client@example.com", createdUser.Email);
         Assert.Equal("client@example.com", createdUser.UserName);
         Assert.Contains(role, createdUser.Roles);
+        emailConfirmationSender.Verify(
+            sender => sender.SendAsync(createdUser, It.IsAny<CancellationToken>()),
+            Times.Once);
     }
 
     [Fact]
@@ -61,7 +70,8 @@ public sealed class RegisterClientHandlerTests
         var handler = new RegisterClientHandler(
             new RegisterClientCommandValidator(),
             userManager.Object,
-            roleManager.Object);
+            roleManager.Object,
+            CreateEmailConfirmationSender().Object);
 
         var result = await handler.Handle(new RegisterClientCommand(
             "client@example.com",
@@ -72,6 +82,29 @@ public sealed class RegisterClientHandlerTests
         Assert.Equal(GeneralErrorCodes.ValueAlreadyExists, result.Error[0].Code);
         Assert.Equal(nameof(RegisterClientCommand.Email), result.Error[0].Target);
         Assert.DoesNotContain("client@example.com", result.Error[0].Message);
+    }
+
+    [Fact]
+    public async Task Handle_WhenClientRoleIsNotSeeded_ReturnsModuleConfigurationError()
+    {
+        var userManager = CreateUserManager();
+        var roleManager = CreateRoleManager();
+        roleManager.Setup(manager => manager.FindByNameAsync(RoleNames.Client))
+            .ReturnsAsync((Role?)null);
+        var handler = new RegisterClientHandler(
+            new RegisterClientCommandValidator(),
+            userManager.Object,
+            roleManager.Object,
+            CreateEmailConfirmationSender().Object);
+
+        var result = await handler.Handle(new RegisterClientCommand(
+            "client@example.com",
+            "Password1!",
+            "Password1!"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(UsersApplicationErrorCodes.RequiredRoleNotConfigured, result.Error[0].Code);
+        Assert.Equal("role", result.Error[0].Target);
     }
 
     private static Mock<UserManager<User>> CreateUserManager()
@@ -96,6 +129,14 @@ public sealed class RegisterClientHandlerTests
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
             NullLogger<RoleManager<Role>>.Instance);
+    }
+
+    private static Mock<IEmailConfirmationSender> CreateEmailConfirmationSender()
+    {
+        var sender = new Mock<IEmailConfirmationSender>();
+        sender.Setup(item => item.SendAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitResult.Success<Error>());
+        return sender;
     }
 
     private static Role CreateRole(string name)

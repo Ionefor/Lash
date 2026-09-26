@@ -31,6 +31,21 @@ public sealed class RefreshSession
 
     public bool IsRevoked => RevokedAt is not null;
 
+    public UnitResult<Error> EnsureActive(DateTimeOffset currentTime)
+    {
+        if (IsRevoked)
+        {
+            return UnitResult.Failure(AuthErrors.RefreshTokenInvalid());
+        }
+
+        if (ExpiresAt <= currentTime)
+        {
+            return UnitResult.Failure(AuthErrors.RefreshTokenExpired());
+        }
+
+        return UnitResult.Success<Error>();
+    }
+
     public static Result<RefreshSession, Error> Create(Guid userId, Guid jti, string tokenHash, DateTimeOffset expiresAt)
     {
         if (userId == Guid.Empty)

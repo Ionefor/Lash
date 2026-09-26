@@ -1,5 +1,8 @@
 using Lash.Users.Application.Features.Commands.RegisterMaster;
+using Lash.Users.Application.Abstractions;
 using Lash.Users.Domain;
+using CSharpFunctionalExtensions;
+using ErrorsFlow.Models;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Options;
@@ -26,7 +29,8 @@ public sealed class RegisterMasterHandlerTests
         var handler = new RegisterMasterHandler(
             new RegisterMasterCommandValidator(),
             userManager.Object,
-            roleManager.Object);
+            roleManager.Object,
+            CreateEmailConfirmationSender().Object);
 
         var result = await handler.Handle(new RegisterMasterCommand(
             "master@example.com",
@@ -63,6 +67,14 @@ public sealed class RegisterMasterHandlerTests
             new UpperInvariantLookupNormalizer(),
             new IdentityErrorDescriber(),
             NullLogger<RoleManager<Role>>.Instance);
+    }
+
+    private static Mock<IEmailConfirmationSender> CreateEmailConfirmationSender()
+    {
+        var sender = new Mock<IEmailConfirmationSender>();
+        sender.Setup(item => item.SendAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(UnitResult.Success<Error>());
+        return sender;
     }
 
     private static Role CreateRole(string name)
