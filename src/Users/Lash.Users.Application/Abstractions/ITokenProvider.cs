@@ -2,18 +2,17 @@ using System.Security.Claims;
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
 using Lash.Users.Application.Models;
-using Lash.Users.Domain;
 
 namespace Lash.Users.Application.Abstractions;
 
 public interface ITokenProvider
 {
     Task<JwtTokenResult> GenerateAccessTokenAsync(
-        User user,
+        UserAccount user,
         CancellationToken cancellationToken = default);
 
     Task<Result<string, Error>> GenerateRefreshTokenAsync(
-        User user,
+        UserAccount user,
         Guid accessTokenJti,
         CancellationToken cancellationToken = default);
 

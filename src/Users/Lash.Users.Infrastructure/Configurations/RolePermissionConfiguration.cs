@@ -1,12 +1,12 @@
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Lash.Users.Infrastructure.Configurations;
 
-public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<RolePermission>
+public sealed class RolePermissionConfiguration : IEntityTypeConfiguration<IdentityRolePermission>
 {
-    public void Configure(EntityTypeBuilder<RolePermission> builder)
+    public void Configure(EntityTypeBuilder<IdentityRolePermission> builder)
     {
         builder.ToTable("role_permissions");
         builder.HasKey(rolePermission => new { rolePermission.RoleId, rolePermission.PermissionId });

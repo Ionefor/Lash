@@ -15,12 +15,15 @@
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
     <PackageReference Include="Npgsql.EntityFrameworkCore.PostgreSQL" Version="10.0.3" />
+    <PackageReference Include="MassTransit.EntityFrameworkCore" Version="8.5.2" />
+    <PackageReference Include="MassTransit.RabbitMQ" Version="8.5.2" />
     <PackageReference Include="WebFlow.Abstractions" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>
     <ProjectReference Include="..\Lash.Users.Application\Lash.Users.Application.csproj" />
     <ProjectReference Include="..\Lash.Users.Domain\Lash.Users.Domain.csproj" />
+    <ProjectReference Include="..\Lash.Users.Messaging\Lash.Users.Messaging.csproj" />
   </ItemGroup>
 
 </Project>

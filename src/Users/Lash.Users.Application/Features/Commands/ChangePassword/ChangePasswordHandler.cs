@@ -2,9 +2,9 @@ using CSharpFunctionalExtensions;
 using ErrorsFlow.Errors;
 using ErrorsFlow.Models;
 using FluentValidation;
+using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Extensions;
-using Lash.Users.Domain;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
 using WebFlow.FluentValidation.Extensions;
 
@@ -12,19 +12,32 @@ namespace Lash.Users.Application.Features.Commands.ChangePassword;
 
 public sealed class ChangePasswordHandler(
     IValidator<ChangePasswordCommand> validator,
-    UserManager<User> userManager) : ICommandHandler<ChangePasswordCommand>
+    IUserAccountService accounts,
+    ILogger<ChangePasswordHandler> logger) : ICommandHandler<ChangePasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ChangePasswordCommand command, CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(command, cancellationToken);
         if (!validation.IsValid)
+        {
+            logger.LogWarning("Password change validation failed.");
             return validation.ToErrorList();
+        }
 
-        var user = await userManager.FindByIdAsync(command.UserId.ToString());
-        if (user is null || !await userManager.CheckPasswordAsync(user, command.CurrentPassword))
+        var user = await accounts.FindByIdAsync(command.UserId, cancellationToken);
+        if (user is null)
+        {
+            logger.LogWarning("Password change was requested for an unknown user {UserId}.", command.UserId);
             return AuthErrors.CredentialsInvalid().ToErrorList();
+        }
+        var change = await accounts.ChangePasswordAsync(user.Id, command.CurrentPassword, command.Password, cancellationToken);
+        if (change.IsFailure)
+        {
+            logger.LogDebug("Password change failed for user {UserId}.", user.Id);
+            return change.Error.ToErrorList();
+        }
 
-        var change = await userManager.ChangePasswordAsync(user, command.CurrentPassword, command.Password);
-        return change.Succeeded ? UnitResult.Success<ErrorList>() : change.ToErrorList();
+        logger.LogInformation("Password changed for user {UserId}.", user.Id);
+        return UnitResult.Success<ErrorList>();
     }
 }

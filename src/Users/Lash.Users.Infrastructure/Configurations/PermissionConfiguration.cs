@@ -1,12 +1,12 @@
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
 namespace Lash.Users.Infrastructure.Configurations;
 
-public sealed class PermissionConfiguration : IEntityTypeConfiguration<Permission>
+public sealed class PermissionConfiguration : IEntityTypeConfiguration<IdentityPermission>
 {
-    public void Configure(EntityTypeBuilder<Permission> builder)
+    public void Configure(EntityTypeBuilder<IdentityPermission> builder)
     {
         builder.ToTable("permissions");
 

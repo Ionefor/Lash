@@ -1,4 +1,4 @@
-namespace Lash.Users.Domain;
+namespace Lash.Users.Infrastructure.Identity;
 
 public sealed class IdentityEmailRequest
 {

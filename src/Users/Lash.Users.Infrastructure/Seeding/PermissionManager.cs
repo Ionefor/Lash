@@ -1,5 +1,5 @@
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.DbContexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -24,7 +24,7 @@ public sealed class PermissionManager(UsersDbContext dbContext) : IPermissionMan
 
         var permissions = codes
             .Where(code => !existingCodes.Contains(code))
-            .Select(code => Permission.Create(code).Value);
+            .Select(IdentityPermission.Create);
 
         await dbContext.Permissions.AddRangeAsync(permissions, cancellationToken);
     }

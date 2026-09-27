@@ -1,4 +1,5 @@
 using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 
@@ -20,9 +21,10 @@ public sealed class RefreshSessionConfiguration : IEntityTypeConfiguration<Refre
         builder.HasIndex(session => session.TokenHash)
             .IsUnique();
 
-        builder.HasOne(session => session.User)
+        builder.HasOne<IdentityUserEntity>()
             .WithMany()
             .HasForeignKey(session => session.UserId)
+            .HasConstraintName("fk_refresh_sessions_users_user_id")
             .OnDelete(DeleteBehavior.Cascade);
     }
 }

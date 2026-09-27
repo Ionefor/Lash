@@ -1,10 +1,10 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
+using Lash.Users.Application.Abstractions;
 using FluentValidation;
 using Lash.Users.Application.Extensions;
 using Lash.Users.Application.Errors;
-using Lash.Users.Domain;
-using Microsoft.AspNetCore.Identity;
+using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
 using WebFlow.FluentValidation.Extensions;
 
@@ -12,24 +12,33 @@ namespace Lash.Users.Application.Features.Commands.ResetPassword;
 
 public sealed class ResetPasswordHandler(
     IValidator<ResetPasswordCommand> validator,
-    UserManager<User> userManager) : ICommandHandler<ResetPasswordCommand>
+    IUserAccountService accounts,
+    ILogger<ResetPasswordHandler> logger) : ICommandHandler<ResetPasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ResetPasswordCommand command, CancellationToken cancellationToken = default)
     {
         var validation = await validator.ValidateAsync(command, cancellationToken);
         if (!validation.IsValid)
+        {
+            logger.LogWarning("Password reset validation failed.");
             return validation.ToErrorList();
+        }
 
-        var user = await userManager.FindByEmailAsync(command.Email);
+        var user = await accounts.FindByEmailAsync(command.Email, cancellationToken);
         if (user is null)
+        {
+            logger.LogDebug("Password reset was requested for an unknown account.");
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
+        }
 
-        var reset = await userManager.ResetPasswordAsync(user, command.Code, command.Password);
-        if (reset.Succeeded)
-            return UnitResult.Success<ErrorList>();
+        var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
+        if (reset.IsFailure)
+        {
+            logger.LogDebug("Password reset failed for user {UserId}.", user.Id);
+            return reset.Error.ToErrorList();
+        }
 
-        return reset.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken))
-            ? UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList()
-            : reset.ToErrorList();
+        logger.LogInformation("Password reset completed for user {UserId}.", user.Id);
+        return UnitResult.Success<ErrorList>();
     }
 }

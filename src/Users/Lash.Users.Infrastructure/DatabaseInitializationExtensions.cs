@@ -2,6 +2,7 @@ using Lash.Users.Infrastructure.DbContexts;
 using Lash.Users.Infrastructure.Seeding;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 
 namespace Lash.Users.Infrastructure;
 
@@ -13,17 +14,41 @@ public static class DatabaseInitializationExtensions
     {
         await using var scope = services.CreateAsyncScope();
         var serviceProvider = scope.ServiceProvider;
+        var logger = serviceProvider.GetRequiredService<ILogger<UsersDbContext>>();
 
-        var dbContext = serviceProvider.GetRequiredService<UsersDbContext>();
-        await dbContext.Database.MigrateAsync(cancellationToken);
+        try
+        {
+            logger.LogInformation("Applying Users database migrations.");
+            var dbContext = serviceProvider.GetRequiredService<UsersDbContext>();
+            await dbContext.Database.MigrateAsync(cancellationToken);
+            logger.LogInformation("Users database migrations applied.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Users database migration failed.");
+            throw;
+        }
+    }
 
-        var rolesSeeder = serviceProvider.GetRequiredService<RolesSeeder>();
-        await rolesSeeder.SeedAsync(cancellationToken);
+    public static async Task SeedUsersDatabaseAsync(
+        this IServiceProvider services,
+        CancellationToken cancellationToken = default)
+    {
+        await using var scope = services.CreateAsyncScope();
+        var serviceProvider = scope.ServiceProvider;
+        var logger = serviceProvider.GetRequiredService<ILogger<DatabaseSeeder>>();
 
-        var permissionsSeeder = serviceProvider.GetRequiredService<PermissionsSeeder>();
-        await permissionsSeeder.SeedAsync(cancellationToken);
-
-        var adminSeeder = serviceProvider.GetRequiredService<AdminSeeder>();
-        await adminSeeder.SeedAsync(cancellationToken);
+        try
+        {
+            logger.LogInformation("Starting Users database seed.");
+            var databaseSeeder = serviceProvider.GetRequiredService<DatabaseSeeder>();
+            await databaseSeeder.SeedAsync(cancellationToken);
+            logger.LogInformation("Users database seed completed.");
+        }
+        catch (Exception exception) when (exception is not OperationCanceledException)
+        {
+            logger.LogError(exception, "Users database seed failed.");
+            throw;
+        }
     }
 }

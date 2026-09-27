@@ -5,10 +5,12 @@ namespace Lash.Users.UnitTests.Domain;
 
 public sealed class RefreshSessionTests
 {
+    private static readonly DateTimeOffset CreatedAt = new(2026, 9, 27, 0, 0, 0, TimeSpan.Zero);
+
     [Fact]
     public void Create_WhenExpirationIsNotInFuture_ReturnsInvalidValueError()
     {
-        var result = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "token-hash", DateTimeOffset.MinValue);
+        var result = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "token-hash", CreatedAt, CreatedAt);
 
         Assert.True(result.IsFailure);
         Assert.Equal(GeneralErrorCodes.ValueIsInvalid, result.Error.Code);
@@ -55,9 +57,15 @@ public sealed class RefreshSessionTests
 
     private static RefreshSession CreateSession()
     {
-        var result = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "token-hash", DateTimeOffset.MaxValue);
+        var result = RefreshSession.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            CreatedAt,
+            CreatedAt.AddDays(30));
 
         Assert.True(result.IsSuccess);
+        Assert.Equal(CreatedAt, result.Value.CreatedAt);
         return result.Value;
     }
 }

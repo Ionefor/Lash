@@ -3,9 +3,11 @@ using ErrorsFlow.Models;
 using FluentValidation;
 using Lash.Users.Application.Errors;
 using Lash.Users.Application.Abstractions;
+using Lash.Users.Application.Constants;
 using Lash.Users.Application.Extensions;
-using Lash.Users.Domain;
-using Microsoft.AspNetCore.Identity;
+using Lash.Users.Application.Models;
+using Lash.Users.Messaging.Events;
+using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
 using WebFlow.FluentValidation.Extensions;
 
@@ -14,20 +16,23 @@ namespace Lash.Users.Application.Features.Commands.RegisterClient;
 public sealed class RegisterClientHandler : ICommandHandler<RegisterClientCommand, Guid>
 {
     private readonly IValidator<RegisterClientCommand> _validator;
-    private readonly UserManager<User> _userManager;
-    private readonly RoleManager<Role> _roleManager;
-    private readonly IEmailConfirmationSender _emailConfirmationSender;
+    private readonly IUserAccountService _accounts;
+    private readonly IUsersEventPublisher _eventPublisher;
+    private readonly IUnitOfWork _unitOfWork;
+    private readonly ILogger<RegisterClientHandler> _logger;
 
     public RegisterClientHandler(
         IValidator<RegisterClientCommand> validator,
-        UserManager<User> userManager,
-        RoleManager<Role> roleManager,
-        IEmailConfirmationSender emailConfirmationSender)
+        IUserAccountService accounts,
+        IUsersEventPublisher eventPublisher,
+        IUnitOfWork unitOfWork,
+        ILogger<RegisterClientHandler> logger)
     {
         _validator = validator;
-        _userManager = userManager;
-        _roleManager = roleManager;
-        _emailConfirmationSender = emailConfirmationSender;
+        _accounts = accounts;
+        _eventPublisher = eventPublisher;
+        _unitOfWork = unitOfWork;
+        _logger = logger;
     }
 
     public async Task<Result<Guid, ErrorList>> Handle(
@@ -38,31 +43,36 @@ public sealed class RegisterClientHandler : ICommandHandler<RegisterClientComman
 
         if (!validationResult.IsValid)
         {
+            _logger.LogWarning("Client registration validation failed.");
             return validationResult.ToErrorList();
         }
 
-        var clientRole = await _roleManager.FindByNameAsync(RoleNames.Client);
-
-        if (clientRole is null)
+        if (!await _accounts.RoleExistsAsync(AccountRoleNames.Client, cancellationToken))
         {
+            _logger.LogError("Client registration cannot proceed because the required role is not configured.");
             return UsersApplicationErrors.RequiredRoleNotConfigured().ToErrorList();
         }
 
-        var userResult = User.RegisterClient(command.Email, clientRole);
-
-        if (userResult.IsFailure)
+        await using var transaction = await _unitOfWork.BeginTransactionAsync(cancellationToken);
+        var creation = await _accounts.CreateAsync(command.Email, command.Password, AccountRoleNames.Client, cancellationToken);
+        if (creation.IsFailure)
         {
-            return userResult.Error.ToErrorList();
+            _logger.LogWarning("Client registration could not create an account.");
+            return creation.Error.ToErrorList();
         }
 
-        var identityResult = await _userManager.CreateAsync(userResult.Value, command.Password);
+        await _eventPublisher.PublishAsync(new ClientRegistered(
+            Guid.NewGuid(),
+            creation.Value.Id,
+            DateTimeOffset.UtcNow), cancellationToken);
+        await _eventPublisher.PublishAsync(new EmailConfirmationRequested(
+            Guid.NewGuid(),
+            creation.Value.Id,
+            DateTimeOffset.UtcNow), cancellationToken);
+        await _unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
 
-        if (!identityResult.Succeeded)
-        {
-            return identityResult.ToErrorList();
-        }
-
-        var emailResult = await _emailConfirmationSender.SendAsync(userResult.Value, cancellationToken);
-        return emailResult.IsSuccess ? userResult.Value.Id : emailResult.Error.ToErrorList();
+        _logger.LogInformation("Client registration completed for user {UserId}.", creation.Value.Id);
+        return creation.Value.Id;
     }
 }

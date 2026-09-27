@@ -6,10 +6,12 @@ using CSharpFunctionalExtensions;
 using ErrorsFlow.Errors;
 using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
+using Lash.Users.Application.Constants;
 using Lash.Users.Application.Models;
 using Lash.Users.Domain;
 using Lash.Users.Infrastructure.Authorization;
 using Lash.Users.Infrastructure.DbContexts;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -20,23 +22,24 @@ namespace Lash.Users.Infrastructure.Providers;
 public sealed class JwtTokenProvider(
     IOptions<JwtOptions> options,
     UsersDbContext dbContext,
-    UserManager<User> userManager,
+    UserManager<IdentityUserEntity> userManager,
     IPermissionManager permissionManager) : ITokenProvider
 {
     private readonly JwtOptions _options = options.Value;
 
     public async Task<JwtTokenResult> GenerateAccessTokenAsync(
-        User user,
+        UserAccount user,
         CancellationToken cancellationToken = default)
     {
-        var roles = await userManager.GetRolesAsync(user);
+        var identityUser = await userManager.FindByIdAsync(user.Id.ToString());
+        var roles = identityUser is null ? [] : await userManager.GetRolesAsync(identityUser);
         var permissions = await permissionManager.GetUserPermissionsAsync(user.Id, cancellationToken);
         var jti = Guid.NewGuid();
 
         var claims = new List<Claim>
         {
-            new(AccessTokenClaimTypes.Subject, user.Id.ToString()),
-            new(AccessTokenClaimTypes.JwtId, jti.ToString())
+            new(AccessTokenClaimTypes.Sub, user.Id.ToString()),
+            new(AccessTokenClaimTypes.Jti, jti.ToString())
         };
 
         if (!string.IsNullOrWhiteSpace(user.Email))
@@ -61,16 +64,18 @@ public sealed class JwtTokenProvider(
     }
 
     public async Task<Result<string, Error>> GenerateRefreshTokenAsync(
-        User user,
+        UserAccount user,
         Guid accessTokenJti,
         CancellationToken cancellationToken = default)
     {
         var refreshToken = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(64));
+        var createdAt = DateTimeOffset.UtcNow;
         var sessionResult = RefreshSession.Create(
             user.Id,
             accessTokenJti,
             RefreshTokenHasher.Hash(refreshToken),
-            DateTimeOffset.UtcNow.AddDays(_options.RefreshTokenLifetimeDays));
+            createdAt,
+            createdAt.AddDays(_options.RefreshTokenLifetimeDays));
 
         if (sessionResult.IsFailure)
         {

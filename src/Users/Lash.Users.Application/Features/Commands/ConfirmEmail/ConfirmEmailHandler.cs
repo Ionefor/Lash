@@ -1,24 +1,44 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
+using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Errors;
 using Lash.Users.Application.Extensions;
-using Lash.Users.Domain;
-using Microsoft.AspNetCore.Identity;
+using FluentValidation;
+using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
+using WebFlow.FluentValidation.Extensions;
 
 namespace Lash.Users.Application.Features.Commands.ConfirmEmail;
 
-public sealed class ConfirmEmailHandler(UserManager<User> userManager) : ICommandHandler<ConfirmEmailCommand>
+public sealed class ConfirmEmailHandler(
+    IValidator<ConfirmEmailCommand> validator,
+    IUserAccountService accounts,
+    ILogger<ConfirmEmailHandler> logger) : ICommandHandler<ConfirmEmailCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ConfirmEmailCommand command, CancellationToken cancellationToken = default)
     {
-        var user = await userManager.FindByEmailAsync(command.Email);
-        if (user is null)
-            return UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
+        var validation = await validator.ValidateAsync(command, cancellationToken);
+        if (!validation.IsValid)
+        {
+            logger.LogWarning("Email confirmation validation failed.");
+            return validation.ToErrorList();
+        }
 
-        var confirmation = await userManager.ConfirmEmailAsync(user, command.Code);
-        return confirmation.Succeeded
-            ? UnitResult.Success<ErrorList>()
-            : UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
+        var user = await accounts.FindByEmailAsync(command.Email, cancellationToken);
+        if (user is null)
+        {
+            logger.LogDebug("Email confirmation was requested for an unknown account.");
+            return UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
+        }
+
+        var confirmation = await accounts.ConfirmEmailAsync(user.Id, command.Code, cancellationToken);
+        if (confirmation.IsFailure)
+        {
+            logger.LogDebug("Email confirmation failed for user {UserId}.", user.Id);
+            return confirmation.Error.ToErrorList();
+        }
+
+        logger.LogInformation("Email confirmed for user {UserId}.", user.Id);
+        return UnitResult.Success<ErrorList>();
     }
 }
