@@ -46,7 +46,8 @@ public sealed class RefreshTokensHandlerTests
             .ReturnsAsync(true);
         var accounts = CreateAccounts(session.UserId);
         var tokens = CreateTokens(session);
-        var unitOfWork = CreateUnitOfWork();
+        var transaction = new Mock<ITransaction>();
+        var unitOfWork = CreateUnitOfWork(transaction);
         var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
@@ -55,6 +56,92 @@ public sealed class RefreshTokensHandlerTests
         Assert.Equal(new AuthTokens("new-access", "new-refresh"), result.Value);
         refreshSessions.Verify(item => item.TryRevokeAsync(session.Id, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
+        transaction.Verify(item => item.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenAccessTokenIsInvalid_ReturnsTokenInvalidWithoutStartingTransaction()
+    {
+        var session = CreateSession();
+        var refreshSessions = new Mock<IRefreshSessionManager>();
+        refreshSessions.Setup(item => item.GetByRefreshTokenAsync("refresh", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<RefreshSession, Error>(session));
+        var tokens = new Mock<ITokenProvider>();
+        tokens.Setup(item => item.GetClaimsFromExpiredAccessTokenAsync("access", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure<IReadOnlyList<Claim>, Error>(AuthErrors.TokenInvalid()));
+        var unitOfWork = CreateUnitOfWork();
+        var handler = new RefreshTokensHandler(refreshSessions.Object, Mock.Of<IUserAccountService>(), tokens.Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
+
+        var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.TokenInvalid, result.Error[0].Code);
+        unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenAccessTokenClaimsDoNotMatchSession_ReturnsTokenInvalidWithoutLoadingUser()
+    {
+        var session = CreateSession();
+        var refreshSessions = new Mock<IRefreshSessionManager>();
+        refreshSessions.Setup(item => item.GetByRefreshTokenAsync("refresh", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<RefreshSession, Error>(session));
+        var tokens = CreateTokens(session);
+        tokens.Setup(item => item.GetClaimsFromExpiredAccessTokenAsync("access", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<IReadOnlyList<Claim>, Error>([
+                new Claim(AccessTokenClaimTypes.Sub, Guid.NewGuid().ToString()),
+                new Claim(AccessTokenClaimTypes.Jti, session.Jti.ToString())
+            ]));
+        var accounts = new Mock<IUserAccountService>();
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, CreateUnitOfWork().Object, NullLogger<RefreshTokensHandler>.Instance);
+
+        var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.TokenInvalid, result.Error[0].Code);
+        accounts.Verify(item => item.FindByIdAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenSessionUserDoesNotExist_ReturnsTokenInvalidWithoutStartingTransaction()
+    {
+        var session = CreateSession();
+        var refreshSessions = new Mock<IRefreshSessionManager>();
+        refreshSessions.Setup(item => item.GetByRefreshTokenAsync("refresh", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<RefreshSession, Error>(session));
+        var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.FindByIdAsync(session.UserId, It.IsAny<CancellationToken>()))
+            .ReturnsAsync((UserAccount?)null);
+        var unitOfWork = CreateUnitOfWork();
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, CreateTokens(session).Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
+
+        var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.TokenInvalid, result.Error[0].Code);
+        unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenReplacementRefreshTokenCannotBeCreated_DoesNotCommitTransaction()
+    {
+        var session = CreateSession();
+        var refreshSessions = new Mock<IRefreshSessionManager>();
+        refreshSessions.Setup(item => item.GetByRefreshTokenAsync("refresh", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<RefreshSession, Error>(session));
+        refreshSessions.Setup(item => item.TryRevokeAsync(session.Id, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(true);
+        var tokens = CreateTokens(session);
+        tokens.Setup(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Failure<string, Error>(AuthErrors.RefreshTokenInvalid()));
+        var transaction = new Mock<ITransaction>();
+        var handler = new RefreshTokensHandler(refreshSessions.Object, CreateAccounts(session.UserId).Object, tokens.Object, CreateUnitOfWork(transaction).Object, NullLogger<RefreshTokensHandler>.Instance);
+
+        var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.RefreshTokenInvalid, result.Error[0].Code);
+        transaction.Verify(item => item.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
     }
 
     private static RefreshSession CreateSession()
@@ -92,9 +179,9 @@ public sealed class RefreshTokensHandlerTests
         return tokens;
     }
 
-    private static Mock<IUnitOfWork> CreateUnitOfWork()
+    private static Mock<IUnitOfWork> CreateUnitOfWork(Mock<ITransaction>? transaction = null)
     {
-        var transaction = new Mock<ITransaction>();
+        transaction ??= new Mock<ITransaction>();
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
         return unitOfWork;

@@ -48,7 +48,8 @@ public sealed class LogoutHandlerTests
 
     private static RefreshSession CreateSession()
     {
-        var session = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", DateTimeOffset.UtcNow, DateTimeOffset.UtcNow.AddDays(1));
+        var createdAt = new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero);
+        var session = RefreshSession.Create(Guid.NewGuid(), Guid.NewGuid(), "hash", createdAt, createdAt.AddDays(1));
         Assert.True(session.IsSuccess);
         return session.Value;
     }

@@ -74,7 +74,7 @@ public sealed class AuthIdentityEndpointsTests
 
         var result = await new AuthController().ConfirmEmail(new ConfirmEmailRequest("user@example.com", "code"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class AuthIdentityEndpointsTests
 
         var result = await new AuthController().ResendEmailConfirmation(new ResendEmailConfirmationRequest("user@example.com"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
@@ -94,7 +94,7 @@ public sealed class AuthIdentityEndpointsTests
 
         var result = await new AuthController().RequestPasswordReset(new RequestPasswordResetRequest("user@example.com"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
@@ -104,7 +104,7 @@ public sealed class AuthIdentityEndpointsTests
 
         var result = await new AuthController().ResetPassword(new ResetPasswordRequest("user@example.com", "code", "Password1!", "Password1!"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
