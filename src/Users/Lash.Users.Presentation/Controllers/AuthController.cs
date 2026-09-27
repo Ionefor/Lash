@@ -99,6 +99,7 @@ public sealed class AuthController : UsersApplicationController
 
     [AllowAnonymous]
     [HttpPost("logout")]
+    [EnableRateLimiting(UsersRateLimitPolicies.Refresh)]
     public async Task<IActionResult> Logout(
         [FromBody] LogoutRequest request,
         [FromServices] ICommandHandler<LogoutCommand> handler,

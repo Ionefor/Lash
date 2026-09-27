@@ -14,6 +14,7 @@ public sealed class RefreshTokensHandler(
     IUserAccountService accounts,
     ITokenProvider tokenProvider,
     IUnitOfWork unitOfWork,
+    IUserSessionLock userSessionLock,
     ILogger<RefreshTokensHandler> logger) : ICommandHandler<RefreshTokensCommand, AuthTokens>
 {
     public async Task<Result<AuthTokens, ErrorList>> Handle(RefreshTokensCommand command, CancellationToken cancellationToken = default)
@@ -35,10 +36,22 @@ public sealed class RefreshTokensHandler(
         var userId = claims.Value.FirstOrDefault(claim => claim.Type == AccessTokenClaimTypes.Sub)?.Value;
         var jti = claims.Value.FirstOrDefault(claim => claim.Type == AccessTokenClaimTypes.Jti)?.Value;
         if (!Guid.TryParse(userId, out var parsedUserId) || !Guid.TryParse(jti, out var parsedJti) ||
-            parsedUserId != session.Value.UserId || parsedJti != session.Value.Jti)
+            parsedUserId != session.Value.UserId)
         {
             logger.LogWarning("Token refresh rejected because token claims did not match the refresh session.");
             return AuthErrors.TokenInvalid().ToErrorList();
+        }
+
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        if (!await userSessionLock.TryAcquireAsync(session.Value.UserId, cancellationToken))
+        {
+            return AuthErrors.TokenInvalid().ToErrorList();
+        }
+
+        session = await refreshSessionManager.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
+        if (session.IsFailure || parsedJti != session.Value.Jti)
+        {
+            return AuthErrors.RefreshTokenInvalid().ToErrorList();
         }
 
         var user = await accounts.FindByIdAsync(session.Value.UserId, cancellationToken);
@@ -48,7 +61,6 @@ public sealed class RefreshTokensHandler(
             return AuthErrors.TokenInvalid().ToErrorList();
         }
 
-        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
         if (!await refreshSessionManager.TryRevokeAsync(session.Value.Id, DateTimeOffset.UtcNow, cancellationToken))
         {
             logger.LogDebug("Token refresh failed because refresh session was already revoked.");
@@ -56,7 +68,11 @@ public sealed class RefreshTokensHandler(
         }
 
         var accessToken = await tokenProvider.GenerateAccessTokenAsync(user, cancellationToken);
-        var refreshToken = await tokenProvider.GenerateRefreshTokenAsync(user, accessToken.Jti, cancellationToken);
+        var refreshToken = await tokenProvider.GenerateRefreshTokenAsync(
+            user,
+            accessToken.Jti,
+            session.Value.AbsoluteExpiresAt,
+            cancellationToken);
         if (refreshToken.IsFailure)
         {
             logger.LogWarning("Token refresh could not create a replacement refresh session for user {UserId}.", user.Id);

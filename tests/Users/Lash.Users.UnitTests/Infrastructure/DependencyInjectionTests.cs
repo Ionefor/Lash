@@ -25,7 +25,8 @@ public sealed class DependencyInjectionTests
                 ["Jwt:Audience"] = "lash-client",
                 ["Jwt:Key"] = "a-secure-signing-key-with-at-least-32-characters",
                 ["Jwt:ExpiredMinutesTime"] = "15",
-                ["Jwt:RefreshTokenLifetimeDays"] = "30"
+                ["Jwt:RefreshTokenLifetimeDays"] = "30",
+                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60"
             })
             .Build();
         var services = new ServiceCollection();
@@ -111,7 +112,8 @@ public sealed class DependencyInjectionTests
                 ["Jwt:Audience"] = "lash-client",
                 ["Jwt:Key"] = "a-secure-signing-key-with-at-least-32-characters",
                 ["Jwt:ExpiredMinutesTime"] = "15",
-                ["Jwt:RefreshTokenLifetimeDays"] = "30"
+                ["Jwt:RefreshTokenLifetimeDays"] = "30",
+                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60"
             }.Concat(values).ToDictionary(item => item.Key, item => item.Value))
             .Build();
 }

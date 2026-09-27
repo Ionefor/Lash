@@ -16,6 +16,12 @@ public interface ITokenProvider
         Guid accessTokenJti,
         CancellationToken cancellationToken = default);
 
+    Task<Result<string, Error>> GenerateRefreshTokenAsync(
+        UserAccount user,
+        Guid accessTokenJti,
+        DateTimeOffset absoluteExpiresAt,
+        CancellationToken cancellationToken = default);
+
     Task<Result<IReadOnlyList<Claim>, Error>> GetClaimsFromExpiredAccessTokenAsync(
         string jwtToken,
         CancellationToken cancellationToken = default);

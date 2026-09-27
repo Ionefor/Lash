@@ -15,6 +15,9 @@ public sealed class RefreshSessionConfiguration : IEntityTypeConfiguration<Refre
             .HasMaxLength(128)
             .IsRequired();
 
+        builder.Property(session => session.AbsoluteExpiresAt)
+            .IsRequired();
+
         builder.HasIndex(session => session.Jti)
             .IsUnique();
 

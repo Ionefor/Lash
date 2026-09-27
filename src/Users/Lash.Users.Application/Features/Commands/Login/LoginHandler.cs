@@ -1,4 +1,5 @@
 using CSharpFunctionalExtensions;
+using ErrorsFlow.Errors;
 using ErrorsFlow.Models;
 using FluentValidation;
 using Lash.Users.Application.Abstractions;
@@ -14,6 +15,8 @@ public sealed class LoginHandler(
     IValidator<LoginCommand> validator,
     IUserAccountService accounts,
     ITokenProvider tokenProvider,
+    IUnitOfWork unitOfWork,
+    IUserSessionLock userSessionLock,
     ILogger<LoginHandler> logger) : ICommandHandler<LoginCommand, AuthTokens>
 {
     public async Task<Result<AuthTokens, ErrorList>> Handle(LoginCommand command, CancellationToken cancellationToken = default)
@@ -25,10 +28,24 @@ public sealed class LoginHandler(
             return validation.ToErrorList();
         }
 
+        var candidate = await accounts.FindByEmailAsync(command.Email, cancellationToken);
+        if (candidate is null)
+        {
+            var unknownAccountAuthentication = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
+            return unknownAccountAuthentication.Error.ToErrorList();
+        }
+
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        if (!await userSessionLock.TryAcquireAsync(candidate.Id, cancellationToken))
+        {
+            return AuthErrors.CredentialsInvalid().ToErrorList();
+        }
+
         var authentication = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
         if (authentication.IsFailure)
         {
             logger.LogDebug("Login failed because credentials were invalid.");
+            await transaction.CommitAsync(cancellationToken);
             return authentication.Error.ToErrorList();
         }
         var user = authentication.Value;
@@ -36,6 +53,7 @@ public sealed class LoginHandler(
         if (!user.EmailConfirmed)
         {
             logger.LogDebug("Login was rejected because email is not confirmed for user {UserId}.", user.Id);
+            await transaction.CommitAsync(cancellationToken);
             return UsersApplicationErrors.EmailNotConfirmed().ToErrorList();
         }
 
@@ -47,6 +65,7 @@ public sealed class LoginHandler(
             return refreshToken.Error.ToErrorList();
         }
 
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Login completed for user {UserId}.", user.Id);
         return new AuthTokens(accessToken.AccessToken, refreshToken.Value);
     }
