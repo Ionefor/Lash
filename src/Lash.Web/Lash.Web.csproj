@@ -10,6 +10,7 @@
   <ItemGroup>
     <PackageReference Include="DotNetEnv" Version="3.2.0" />
     <PackageReference Include="ErrorsFlow" Version="2.0.1" />
+    <PackageReference Include="Serilog.AspNetCore" Version="9.0.0" />
     <PackageReference Include="WebFlow.AspNetCore" Version="2.1.0" />
   </ItemGroup>
 
