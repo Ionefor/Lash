@@ -55,6 +55,7 @@ public static class DependencyInjection
         services.AddScoped<RolePermissionManager>();
         services.AddScoped<IPermissionManager>(provider => provider.GetRequiredService<PermissionManager>());
         services.AddScoped<IRefreshSessionManager, RefreshSessionManager>();
+        services.AddScoped<IUserSessionLock, UserSessionLock>();
         services.AddScoped<IUserAccountService, UserAccountService>();
         services.AddScoped<ITokenProvider, JwtTokenProvider>();
         services.AddScoped<IEmailConfirmationEmailSender, EmailConfirmationSender>();
@@ -69,6 +70,7 @@ public static class DependencyInjection
             .Validate(options => options.Key.Length >= 32, "Jwt:Key must contain at least 32 characters.")
             .Validate(options => options.ExpiredMinutesTime > 0, "Jwt:ExpiredMinutesTime must be positive.")
             .Validate(options => options.RefreshTokenLifetimeDays > 0, "Jwt:RefreshTokenLifetimeDays must be positive.")
+            .Validate(options => options.RefreshTokenAbsoluteLifetimeDays >= options.RefreshTokenLifetimeDays, "Jwt:RefreshTokenAbsoluteLifetimeDays must be at least Jwt:RefreshTokenLifetimeDays.")
             .ValidateOnStart();
 
         var databaseInitializationOptions = configuration

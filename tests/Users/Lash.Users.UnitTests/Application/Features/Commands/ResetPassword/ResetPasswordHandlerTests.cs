@@ -16,7 +16,7 @@ public sealed class ResetPasswordHandlerTests
     public async Task Handle_WhenCommandIsInvalid_DoesNotAccessAccount()
     {
         var accounts = new Mock<IUserAccountService>();
-        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, Mock.Of<IRefreshSessionManager>(), Mock.Of<IUnitOfWork>(), NullLogger<ResetPasswordHandler>.Instance);
+        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, Mock.Of<IRefreshSessionManager>(), Mock.Of<IUnitOfWork>(), CreateUserSessionLock().Object, NullLogger<ResetPasswordHandler>.Instance);
 
         var result = await handler.Handle(new ResetPasswordCommand("invalid", "", "Password1!", "Password1!"));
 
@@ -35,7 +35,7 @@ public sealed class ResetPasswordHandlerTests
         var transaction = new Mock<ITransaction>();
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
-        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, refreshSessions.Object, unitOfWork.Object, NullLogger<ResetPasswordHandler>.Instance);
+        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<ResetPasswordHandler>.Instance);
 
         var result = await handler.Handle(new ResetPasswordCommand("user@example.com", "code", "Password1!", "Password1!"));
 
@@ -57,12 +57,19 @@ public sealed class ResetPasswordHandlerTests
         var transaction = new Mock<ITransaction>();
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
-        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, refreshSessions.Object, unitOfWork.Object, NullLogger<ResetPasswordHandler>.Instance);
+        var handler = new ResetPasswordHandler(new ResetPasswordCommandValidator(), accounts.Object, refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<ResetPasswordHandler>.Instance);
 
         var result = await handler.Handle(new ResetPasswordCommand("user@example.com", "wrong-code", "Password1!", "Password1!"));
 
         Assert.True(result.IsFailure);
         refreshSessions.Verify(item => item.RevokeAllForUserAsync(It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
         transaction.Verify(item => item.CommitAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static Mock<IUserSessionLock> CreateUserSessionLock()
+    {
+        var userSessionLock = new Mock<IUserSessionLock>();
+        userSessionLock.Setup(item => item.TryAcquireAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        return userSessionLock;
     }
 }

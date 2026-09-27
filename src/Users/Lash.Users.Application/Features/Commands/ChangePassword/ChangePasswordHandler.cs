@@ -15,6 +15,7 @@ public sealed class ChangePasswordHandler(
     IUserAccountService accounts,
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
+    IUserSessionLock userSessionLock,
     ILogger<ChangePasswordHandler> logger) : ICommandHandler<ChangePasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ChangePasswordCommand command, CancellationToken cancellationToken = default)
@@ -33,6 +34,10 @@ public sealed class ChangePasswordHandler(
             return AuthErrors.CredentialsInvalid().ToErrorList();
         }
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        if (!await userSessionLock.TryAcquireAsync(user.Id, cancellationToken))
+        {
+            return AuthErrors.CredentialsInvalid().ToErrorList();
+        }
         var change = await accounts.ChangePasswordAsync(user.Id, command.CurrentPassword, command.Password, cancellationToken);
         if (change.IsFailure)
         {

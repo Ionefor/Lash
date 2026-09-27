@@ -68,14 +68,37 @@ public sealed class JwtTokenProvider(
         Guid accessTokenJti,
         CancellationToken cancellationToken = default)
     {
-        var refreshToken = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(64));
         var createdAt = DateTimeOffset.UtcNow;
+        return await GenerateRefreshTokenAsync(
+            user,
+            accessTokenJti,
+            createdAt,
+            createdAt.AddDays(_options.RefreshTokenAbsoluteLifetimeDays),
+            cancellationToken);
+    }
+
+    public async Task<Result<string, Error>> GenerateRefreshTokenAsync(
+        UserAccount user,
+        Guid accessTokenJti,
+        DateTimeOffset absoluteExpiresAt,
+        CancellationToken cancellationToken = default) =>
+        await GenerateRefreshTokenAsync(user, accessTokenJti, DateTimeOffset.UtcNow, absoluteExpiresAt, cancellationToken);
+
+    private async Task<Result<string, Error>> GenerateRefreshTokenAsync(
+        UserAccount user,
+        Guid accessTokenJti,
+        DateTimeOffset createdAt,
+        DateTimeOffset absoluteExpiresAt,
+        CancellationToken cancellationToken)
+    {
+        var refreshToken = Base64UrlEncoder.Encode(RandomNumberGenerator.GetBytes(64));
         var sessionResult = RefreshSession.Create(
             user.Id,
             accessTokenJti,
             RefreshTokenHasher.Hash(refreshToken),
             createdAt,
-            createdAt.AddDays(_options.RefreshTokenLifetimeDays));
+            Min(createdAt.AddDays(_options.RefreshTokenLifetimeDays), absoluteExpiresAt),
+            absoluteExpiresAt);
 
         if (sessionResult.IsFailure)
         {
@@ -86,6 +109,9 @@ public sealed class JwtTokenProvider(
         await dbContext.SaveChangesAsync(cancellationToken);
         return Result.Success<string, Error>(refreshToken);
     }
+
+    private static DateTimeOffset Min(DateTimeOffset first, DateTimeOffset second) =>
+        first <= second ? first : second;
 
     public async Task<Result<IReadOnlyList<Claim>, Error>> GetClaimsFromExpiredAccessTokenAsync(
         string jwtToken,

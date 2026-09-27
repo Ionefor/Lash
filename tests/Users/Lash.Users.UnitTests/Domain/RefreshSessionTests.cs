@@ -44,6 +44,25 @@ public sealed class RefreshSessionTests
     }
 
     [Fact]
+    public void EnsureActive_WhenAbsoluteLifetimeIsExpired_ReturnsRefreshTokenExpiredError()
+    {
+        var result = RefreshSession.Create(
+            Guid.NewGuid(),
+            Guid.NewGuid(),
+            "token-hash",
+            CreatedAt,
+            CreatedAt.AddHours(12),
+            CreatedAt.AddDays(1));
+
+        Assert.True(result.IsSuccess);
+
+        var activeResult = result.Value.EnsureActive(result.Value.AbsoluteExpiresAt);
+
+        Assert.True(activeResult.IsFailure);
+        Assert.Equal(AuthErrorCodes.RefreshTokenExpired, activeResult.Error.Code);
+    }
+
+    [Fact]
     public void EnsureActive_WhenSessionIsRevoked_ReturnsRefreshTokenInvalidError()
     {
         var session = CreateSession();

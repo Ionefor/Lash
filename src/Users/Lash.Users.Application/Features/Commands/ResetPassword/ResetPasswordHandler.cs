@@ -15,6 +15,7 @@ public sealed class ResetPasswordHandler(
     IUserAccountService accounts,
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
+    IUserSessionLock userSessionLock,
     ILogger<ResetPasswordHandler> logger) : ICommandHandler<ResetPasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ResetPasswordCommand command, CancellationToken cancellationToken = default)
@@ -34,6 +35,10 @@ public sealed class ResetPasswordHandler(
         }
 
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        if (!await userSessionLock.TryAcquireAsync(user.Id, cancellationToken))
+        {
+            return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
+        }
         var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
         if (reset.IsFailure)
         {

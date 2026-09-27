@@ -26,13 +26,13 @@ public sealed class RefreshTokensHandlerTests
             .ReturnsAsync(false);
         var accounts = CreateAccounts(session.UserId);
         var tokens = CreateTokens(session);
-        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, CreateUnitOfWork().Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, CreateUnitOfWork().Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
         Assert.True(result.IsFailure);
         Assert.Equal(AuthErrorCodes.RefreshTokenInvalid, result.Error[0].Code);
-        tokens.Verify(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+        tokens.Verify(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 
     [Fact]
@@ -48,13 +48,18 @@ public sealed class RefreshTokensHandlerTests
         var tokens = CreateTokens(session);
         var transaction = new Mock<ITransaction>();
         var unitOfWork = CreateUnitOfWork(transaction);
-        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
         Assert.True(result.IsSuccess);
         Assert.Equal(new AuthTokens("new-access", "new-refresh"), result.Value);
         refreshSessions.Verify(item => item.TryRevokeAsync(session.Id, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()), Times.Once);
+        tokens.Verify(item => item.GenerateRefreshTokenAsync(
+            It.IsAny<UserAccount>(),
+            It.IsAny<Guid>(),
+            session.AbsoluteExpiresAt,
+            It.IsAny<CancellationToken>()), Times.Once);
         unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
         transaction.Verify(item => item.CommitAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
@@ -70,7 +75,7 @@ public sealed class RefreshTokensHandlerTests
         tokens.Setup(item => item.GetClaimsFromExpiredAccessTokenAsync("access", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure<IReadOnlyList<Claim>, Error>(AuthErrors.TokenInvalid()));
         var unitOfWork = CreateUnitOfWork();
-        var handler = new RefreshTokensHandler(refreshSessions.Object, Mock.Of<IUserAccountService>(), tokens.Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, Mock.Of<IUserAccountService>(), tokens.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
@@ -93,7 +98,7 @@ public sealed class RefreshTokensHandlerTests
                 new Claim(AccessTokenClaimTypes.Jti, session.Jti.ToString())
             ]));
         var accounts = new Mock<IUserAccountService>();
-        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, CreateUnitOfWork().Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, tokens.Object, CreateUnitOfWork().Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
@@ -103,7 +108,7 @@ public sealed class RefreshTokensHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenSessionUserDoesNotExist_ReturnsTokenInvalidWithoutStartingTransaction()
+    public async Task Handle_WhenSessionUserDoesNotExistAfterAcquiringLock_ReturnsTokenInvalid()
     {
         var session = CreateSession();
         var refreshSessions = new Mock<IRefreshSessionManager>();
@@ -113,13 +118,13 @@ public sealed class RefreshTokensHandlerTests
         accounts.Setup(item => item.FindByIdAsync(session.UserId, It.IsAny<CancellationToken>()))
             .ReturnsAsync((UserAccount?)null);
         var unitOfWork = CreateUnitOfWork();
-        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, CreateTokens(session).Object, unitOfWork.Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, accounts.Object, CreateTokens(session).Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
         Assert.True(result.IsFailure);
         Assert.Equal(AuthErrorCodes.TokenInvalid, result.Error[0].Code);
-        unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWork.Verify(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -132,10 +137,10 @@ public sealed class RefreshTokensHandlerTests
         refreshSessions.Setup(item => item.TryRevokeAsync(session.Id, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
         var tokens = CreateTokens(session);
-        tokens.Setup(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        tokens.Setup(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure<string, Error>(AuthErrors.RefreshTokenInvalid()));
         var transaction = new Mock<ITransaction>();
-        var handler = new RefreshTokensHandler(refreshSessions.Object, CreateAccounts(session.UserId).Object, tokens.Object, CreateUnitOfWork(transaction).Object, NullLogger<RefreshTokensHandler>.Instance);
+        var handler = new RefreshTokensHandler(refreshSessions.Object, CreateAccounts(session.UserId).Object, tokens.Object, CreateUnitOfWork(transaction).Object, CreateUserSessionLock().Object, NullLogger<RefreshTokensHandler>.Instance);
 
         var result = await handler.Handle(new RefreshTokensCommand("access", "refresh"));
 
@@ -151,7 +156,8 @@ public sealed class RefreshTokensHandlerTests
             Guid.NewGuid(),
             "hash",
             new DateTimeOffset(2026, 9, 27, 0, 0, 0, TimeSpan.Zero),
-            new DateTimeOffset(2026, 10, 27, 0, 0, 0, TimeSpan.Zero));
+            new DateTimeOffset(2026, 10, 12, 0, 0, 0, TimeSpan.Zero),
+            new DateTimeOffset(2026, 11, 26, 0, 0, 0, TimeSpan.Zero));
         Assert.True(result.IsSuccess);
         return result.Value;
     }
@@ -174,7 +180,7 @@ public sealed class RefreshTokensHandlerTests
             ]));
         tokens.Setup(item => item.GenerateAccessTokenAsync(It.IsAny<UserAccount>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(new JwtTokenResult("new-access", Guid.NewGuid()));
-        tokens.Setup(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
+        tokens.Setup(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<string, Error>("new-refresh"));
         return tokens;
     }
@@ -185,5 +191,12 @@ public sealed class RefreshTokensHandlerTests
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
         return unitOfWork;
+    }
+
+    private static Mock<IUserSessionLock> CreateUserSessionLock()
+    {
+        var userSessionLock = new Mock<IUserSessionLock>();
+        userSessionLock.Setup(item => item.TryAcquireAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        return userSessionLock;
     }
 }

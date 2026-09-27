@@ -10,7 +10,13 @@ public sealed class RefreshSession
     {
     }
 
-    private RefreshSession(Guid userId, Guid jti, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt)
+    private RefreshSession(
+        Guid userId,
+        Guid jti,
+        string tokenHash,
+        DateTimeOffset createdAt,
+        DateTimeOffset expiresAt,
+        DateTimeOffset absoluteExpiresAt)
     {
         Id = Guid.NewGuid();
         UserId = userId;
@@ -18,6 +24,7 @@ public sealed class RefreshSession
         TokenHash = tokenHash;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
+        AbsoluteExpiresAt = absoluteExpiresAt;
     }
 
     public Guid Id { get; private set; }
@@ -25,6 +32,7 @@ public sealed class RefreshSession
     public Guid Jti { get; private set; }
     public string TokenHash { get; private set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; private set; }
+    public DateTimeOffset AbsoluteExpiresAt { get; private set; }
     public DateTimeOffset CreatedAt { get; private set; }
     public DateTimeOffset? RevokedAt { get; private set; }
 
@@ -37,7 +45,7 @@ public sealed class RefreshSession
             return UnitResult.Failure(AuthErrors.RefreshTokenInvalid());
         }
 
-        if (ExpiresAt <= currentTime)
+        if (ExpiresAt <= currentTime || AbsoluteExpiresAt <= currentTime)
         {
             return UnitResult.Failure(AuthErrors.RefreshTokenExpired());
         }
@@ -50,7 +58,8 @@ public sealed class RefreshSession
         Guid jti,
         string tokenHash,
         DateTimeOffset createdAt,
-        DateTimeOffset expiresAt)
+        DateTimeOffset expiresAt,
+        DateTimeOffset? absoluteExpiresAt = null)
     {
         if (userId == Guid.Empty)
         {
@@ -72,7 +81,19 @@ public sealed class RefreshSession
             return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid("expiresAt"));
         }
 
-        return Result.Success<RefreshSession, Error>(new RefreshSession(userId, jti, tokenHash, createdAt, expiresAt));
+        var effectiveAbsoluteExpiresAt = absoluteExpiresAt ?? expiresAt;
+        if (effectiveAbsoluteExpiresAt < expiresAt)
+        {
+            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid("absoluteExpiresAt"));
+        }
+
+        return Result.Success<RefreshSession, Error>(new RefreshSession(
+            userId,
+            jti,
+            tokenHash,
+            createdAt,
+            expiresAt,
+            effectiveAbsoluteExpiresAt));
     }
 
     public UnitResult<Error> Revoke(DateTimeOffset revokedAt)

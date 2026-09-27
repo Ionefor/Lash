@@ -7,6 +7,7 @@ using Lash.Users.Application.Models;
 using Lash.Users.Application.Errors;
 using Moq;
 using Microsoft.Extensions.Logging.Abstractions;
+using WebFlow.Abstractions.Interfaces;
 
 namespace Lash.Users.UnitTests.Application.Features.Commands.Login;
 
@@ -17,6 +18,7 @@ public sealed class LoginHandlerTests
     {
         var user = new UserAccount(Guid.NewGuid(), "user@example.com", true);
         var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
         accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Password1!", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<UserAccount, Error>(user));
         var tokenProvider = new Mock<ITokenProvider>();
@@ -24,7 +26,7 @@ public sealed class LoginHandlerTests
             .ReturnsAsync(new JwtTokenResult("access", Guid.NewGuid()));
         tokenProvider.Setup(item => item.GenerateRefreshTokenAsync(user, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<string, Error>("refresh"));
-        var handler = new LoginHandler(new LoginCommandValidator(), accounts.Object, tokenProvider.Object, NullLogger<LoginHandler>.Instance);
+        var handler = new LoginHandler(new LoginCommandValidator(), accounts.Object, tokenProvider.Object, CreateUnitOfWork().Object, CreateUserSessionLock().Object, NullLogger<LoginHandler>.Instance);
 
         var result = await handler.Handle(new LoginCommand("user@example.com", "Password1!"));
 
@@ -38,7 +40,7 @@ public sealed class LoginHandlerTests
         var accounts = new Mock<IUserAccountService>();
         accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Incorrect1!", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure<UserAccount, Error>(AuthErrors.CredentialsInvalid()));
-        var result = await new LoginHandler(new LoginCommandValidator(), accounts.Object, Mock.Of<ITokenProvider>(), NullLogger<LoginHandler>.Instance)
+        var result = await new LoginHandler(new LoginCommandValidator(), accounts.Object, Mock.Of<ITokenProvider>(), CreateUnitOfWork().Object, CreateUserSessionLock().Object, NullLogger<LoginHandler>.Instance)
             .Handle(new LoginCommand("user@example.com", "Incorrect1!"));
         Assert.True(result.IsFailure);
         Assert.Equal(AuthErrorCodes.CredentialsInvalid, result.Error[0].Code);
@@ -49,10 +51,11 @@ public sealed class LoginHandlerTests
     {
         var user = new UserAccount(Guid.NewGuid(), "user@example.com", false);
         var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
         accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Password1!", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<UserAccount, Error>(user));
         var tokens = new Mock<ITokenProvider>();
-        var handler = new LoginHandler(new LoginCommandValidator(), accounts.Object, tokens.Object, NullLogger<LoginHandler>.Instance);
+        var handler = new LoginHandler(new LoginCommandValidator(), accounts.Object, tokens.Object, CreateUnitOfWork().Object, CreateUserSessionLock().Object, NullLogger<LoginHandler>.Instance);
 
         var result = await handler.Handle(new LoginCommand("user@example.com", "Password1!"));
 
@@ -62,5 +65,20 @@ public sealed class LoginHandlerTests
         Assert.Equal("email", result.Error[0].Target);
         tokens.Verify(item => item.GenerateAccessTokenAsync(It.IsAny<UserAccount>(), It.IsAny<CancellationToken>()), Times.Never);
         tokens.Verify(item => item.GenerateRefreshTokenAsync(It.IsAny<UserAccount>(), It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    private static Mock<IUnitOfWork> CreateUnitOfWork()
+    {
+        var transaction = new Mock<ITransaction>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
+        return unitOfWork;
+    }
+
+    private static Mock<IUserSessionLock> CreateUserSessionLock()
+    {
+        var userSessionLock = new Mock<IUserSessionLock>();
+        userSessionLock.Setup(item => item.TryAcquireAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        return userSessionLock;
     }
 }
