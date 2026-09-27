@@ -13,6 +13,8 @@ namespace Lash.Users.Application.Features.Commands.ResetPassword;
 public sealed class ResetPasswordHandler(
     IValidator<ResetPasswordCommand> validator,
     IUserAccountService accounts,
+    IRefreshSessionManager refreshSessionManager,
+    IUnitOfWork unitOfWork,
     ILogger<ResetPasswordHandler> logger) : ICommandHandler<ResetPasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ResetPasswordCommand command, CancellationToken cancellationToken = default)
@@ -31,6 +33,7 @@ public sealed class ResetPasswordHandler(
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
         }
 
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
         var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
         if (reset.IsFailure)
         {
@@ -38,6 +41,8 @@ public sealed class ResetPasswordHandler(
             return reset.Error.ToErrorList();
         }
 
+        await refreshSessionManager.RevokeAllForUserAsync(user.Id, DateTimeOffset.UtcNow, cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Password reset completed for user {UserId}.", user.Id);
         return UnitResult.Success<ErrorList>();
     }

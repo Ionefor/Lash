@@ -40,14 +40,8 @@ public sealed class AdminSeeder(
                 return;
             }
 
-            var existingUserRoleResult = await userManager.AddToRoleAsync(existingUser, AccountRoleNames.Admin);
-            if (!existingUserRoleResult.Succeeded)
-            {
-                var errors = string.Join(", ", existingUserRoleResult.Errors.Select(error => error.Code));
-                throw new InvalidOperationException($"Could not assign admin role: {errors}");
-            }
-
-            return;
+            throw new InvalidOperationException(
+                "Admin user cannot be seeded because the configured account already exists without the admin role.");
         }
 
         var adminRole = await roleManager.FindByNameAsync(AccountRoleNames.Admin)

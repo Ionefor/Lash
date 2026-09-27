@@ -1,6 +1,7 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
+using Lash.Users.Messaging.Events;
 using FluentValidation;
 using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
@@ -11,7 +12,7 @@ namespace Lash.Users.Application.Features.Commands.RequestPasswordReset;
 public sealed class RequestPasswordResetHandler(
     IValidator<RequestPasswordResetCommand> validator,
     IUserAccountService accounts,
-    IPasswordResetSender sender,
+    IUsersEventPublisher eventPublisher,
     IIdentityEmailRequestLimiter limiter,
     IUnitOfWork unitOfWork,
     ILogger<RequestPasswordResetHandler> logger) : ICommandHandler<RequestPasswordResetCommand>
@@ -33,17 +34,17 @@ public sealed class RequestPasswordResetHandler(
             return UnitResult.Success<ErrorList>();
         }
 
-        await unitOfWork.SaveChangesAsync(cancellationToken);
         var user = await accounts.FindByEmailAsync(command.Email, cancellationToken);
         if (user is not null)
         {
-            var send = await sender.SendAsync(user.Id, cancellationToken);
-            if (send.IsFailure)
-                logger.LogWarning("Password reset email could not be sent for user {UserId}.", user.Id);
-            else
-                logger.LogInformation("Password reset email sent for user {UserId}.", user.Id);
+            await eventPublisher.PublishAsync(new PasswordResetRequested(
+                Guid.NewGuid(),
+                user.Id,
+                DateTimeOffset.UtcNow), cancellationToken);
+            logger.LogInformation("Password reset requested for user {UserId}.", user.Id);
         }
 
+        await unitOfWork.SaveChangesAsync(cancellationToken);
         logger.LogDebug("Password reset request completed.");
 
         return UnitResult.Success<ErrorList>();

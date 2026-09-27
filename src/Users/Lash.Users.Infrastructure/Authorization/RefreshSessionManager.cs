@@ -53,4 +53,16 @@ public sealed class RefreshSessionManager(UsersDbContext dbContext) : IRefreshSe
 
         return updated == 1;
     }
+
+    public async Task RevokeAllForUserAsync(
+        Guid userId,
+        DateTimeOffset revokedAt,
+        CancellationToken cancellationToken = default)
+    {
+        await dbContext.RefreshSessions
+            .Where(session => session.UserId == userId && session.RevokedAt == null)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(session => session.RevokedAt, revokedAt),
+                cancellationToken);
+    }
 }

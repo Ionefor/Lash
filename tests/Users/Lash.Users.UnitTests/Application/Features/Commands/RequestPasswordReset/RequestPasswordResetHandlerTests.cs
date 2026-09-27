@@ -1,8 +1,7 @@
-using CSharpFunctionalExtensions;
-using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Features.Commands.RequestPasswordReset;
 using Lash.Users.Application.Models;
+using Lash.Users.Messaging.Events;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WebFlow.Abstractions.Interfaces;
@@ -18,7 +17,7 @@ public sealed class RequestPasswordResetHandlerTests
         var handler = new RequestPasswordResetHandler(
             new RequestPasswordResetCommandValidator(),
             Mock.Of<IUserAccountService>(),
-            Mock.Of<IPasswordResetSender>(),
+            Mock.Of<IUsersEventPublisher>(),
             limiter.Object,
             Mock.Of<IUnitOfWork>(),
             NullLogger<RequestPasswordResetHandler>.Instance);
@@ -30,23 +29,57 @@ public sealed class RequestPasswordResetHandlerTests
     }
 
     [Fact]
-    public async Task Handle_WhenAccountExists_SendsPasswordResetAndReturnsSuccess()
+    public async Task Handle_WhenRequestLimitIsReached_DoesNotPublishPasswordResetRequest()
     {
-        var user = new UserAccount(Guid.NewGuid(), "user@example.com", true);
         var accounts = new Mock<IUserAccountService>();
-        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
-        var sender = new Mock<IPasswordResetSender>();
-        sender.Setup(item => item.SendAsync(user.Id, It.IsAny<CancellationToken>())).ReturnsAsync(UnitResult.Success<Error>());
+        var publisher = new Mock<IUsersEventPublisher>();
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
-        limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(false);
         var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, sender.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
 
         Assert.True(result.IsSuccess);
-        sender.Verify(item => item.SendAsync(user.Id, It.IsAny<CancellationToken>()), Times.Once);
+        publisher.Verify(item => item.PublishAsync(It.IsAny<PasswordResetRequested>(), It.IsAny<CancellationToken>()), Times.Never);
+        accounts.Verify(item => item.FindByEmailAsync(It.IsAny<string>(), It.IsAny<CancellationToken>()), Times.Never);
+        unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task Handle_WhenAccountExists_PublishesPasswordResetRequestAndReturnsSuccess()
+    {
+        var user = new UserAccount(Guid.NewGuid(), "user@example.com", true);
+        var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        var publisher = new Mock<IUsersEventPublisher>();
+        var limiter = new Mock<IIdentityEmailRequestLimiter>();
+        limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+
+        var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
+
+        Assert.True(result.IsSuccess);
+        publisher.Verify(item => item.PublishAsync(It.Is<PasswordResetRequested>(message => message.UserId == user.Id), It.IsAny<CancellationToken>()), Times.Once);
+        unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    [Fact]
+    public async Task Handle_WhenAccountDoesNotExist_DoesNotPublishPasswordResetRequest()
+    {
+        var accounts = new Mock<IUserAccountService>();
+        var publisher = new Mock<IUsersEventPublisher>();
+        var limiter = new Mock<IIdentityEmailRequestLimiter>();
+        limiter.Setup(item => item.TryAcquireAsync("unknown@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+
+        var result = await handler.Handle(new RequestPasswordResetCommand("unknown@example.com"));
+
+        Assert.True(result.IsSuccess);
+        publisher.Verify(item => item.PublishAsync(It.IsAny<PasswordResetRequested>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }
