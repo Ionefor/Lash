@@ -27,14 +27,14 @@ public sealed class ConfirmEmailHandler(
         var user = await accounts.FindByEmailAsync(command.Email, cancellationToken);
         if (user is null)
         {
-            logger.LogDebug("Email confirmation was requested for an unknown account.");
+            logger.LogWarning("Email confirmation was requested for an unknown account.");
             return UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
         }
 
         var confirmation = await accounts.ConfirmEmailAsync(user.Id, command.Code, cancellationToken);
         if (confirmation.IsFailure)
         {
-            logger.LogDebug("Email confirmation failed for user {UserId}.", user.Id);
+            logger.LogWarning("Email confirmation failed for user {UserId}.", user.Id);
             return confirmation.Error.ToErrorList();
         }
 

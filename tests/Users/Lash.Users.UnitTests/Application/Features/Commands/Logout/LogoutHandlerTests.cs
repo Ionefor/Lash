@@ -19,7 +19,7 @@ public sealed class LogoutHandlerTests
         refreshSessions.Setup(item => item.GetByRefreshTokenAsync("refresh", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Failure<RefreshSession, Error>(AuthErrors.RefreshTokenInvalid()));
         var unitOfWork = new Mock<IUnitOfWork>();
-        var handler = new LogoutHandler(refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<LogoutHandler>.Instance);
+        var handler = new LogoutHandler(refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<LogoutHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new LogoutCommand("refresh"));
 
@@ -40,7 +40,7 @@ public sealed class LogoutHandlerTests
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
         refreshSessions.Setup(item => item.TryRevokeAsync(session.Id, It.IsAny<DateTimeOffset>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(true);
-        var handler = new LogoutHandler(refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<LogoutHandler>.Instance);
+        var handler = new LogoutHandler(refreshSessions.Object, unitOfWork.Object, CreateUserSessionLock().Object, NullLogger<LogoutHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new LogoutCommand("refresh"));
 

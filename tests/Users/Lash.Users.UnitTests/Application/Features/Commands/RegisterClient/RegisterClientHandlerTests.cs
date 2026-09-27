@@ -5,7 +5,7 @@ using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Constants;
 using Lash.Users.Application.Features.Commands.RegisterClient;
 using Lash.Users.Application.Models;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using Moq;
 using WebFlow.Abstractions.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -24,7 +24,7 @@ public sealed class RegisterClientHandlerTests
             .ReturnsAsync(Result.Success<UserAccount, Error>(new UserAccount(userId, "client@example.com", false)));
         var publisher = CreatePublisher();
         var unitOfWork = CreateUnitOfWork();
-        var handler = new RegisterClientHandler(new RegisterClientCommandValidator(), accounts.Object, publisher.Object, unitOfWork.Object, NullLogger<RegisterClientHandler>.Instance);
+        var handler = new RegisterClientHandler(new RegisterClientCommandValidator(), accounts.Object, publisher.Object, unitOfWork.Object, NullLogger<RegisterClientHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RegisterClientCommand("client@example.com", "Password1!", "Password1!"));
 
@@ -40,7 +40,7 @@ public sealed class RegisterClientHandlerTests
     {
         var accounts = new Mock<IUserAccountService>();
         accounts.Setup(item => item.RoleExistsAsync(AccountRoleNames.Client, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        var handler = new RegisterClientHandler(new RegisterClientCommandValidator(), accounts.Object, CreatePublisher().Object, CreateUnitOfWork().Object, NullLogger<RegisterClientHandler>.Instance);
+        var handler = new RegisterClientHandler(new RegisterClientCommandValidator(), accounts.Object, CreatePublisher().Object, CreateUnitOfWork().Object, NullLogger<RegisterClientHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RegisterClientCommand("client@example.com", "Password1!", "Password1!"));
 

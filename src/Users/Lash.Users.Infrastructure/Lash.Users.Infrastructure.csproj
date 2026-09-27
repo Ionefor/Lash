@@ -23,7 +23,7 @@
   <ItemGroup>
     <ProjectReference Include="..\Lash.Users.Application\Lash.Users.Application.csproj" />
     <ProjectReference Include="..\Lash.Users.Domain\Lash.Users.Domain.csproj" />
-    <ProjectReference Include="..\Lash.Users.Messaging\Lash.Users.Messaging.csproj" />
+    <ProjectReference Include="..\Lash.Users.Contracts\Lash.Users.Contracts.csproj" />
   </ItemGroup>
 
 </Project>

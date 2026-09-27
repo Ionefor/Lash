@@ -1,4 +1,4 @@
-namespace Lash.Users.Messaging.Events;
+namespace Lash.Users.Contracts.Events;
 
 public sealed record ClientRegistered(
     Guid EventId,

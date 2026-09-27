@@ -16,7 +16,8 @@ public sealed class ResetPasswordHandler(
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
     IUserSessionLock userSessionLock,
-    ILogger<ResetPasswordHandler> logger) : ICommandHandler<ResetPasswordCommand>
+    ILogger<ResetPasswordHandler> logger,
+    TimeProvider timeProvider) : ICommandHandler<ResetPasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ResetPasswordCommand command, CancellationToken cancellationToken = default)
     {
@@ -30,7 +31,7 @@ public sealed class ResetPasswordHandler(
         var user = await accounts.FindByEmailAsync(command.Email, cancellationToken);
         if (user is null)
         {
-            logger.LogDebug("Password reset was requested for an unknown account.");
+            logger.LogWarning("Password reset was requested for an unknown account.");
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
         }
 
@@ -42,11 +43,11 @@ public sealed class ResetPasswordHandler(
         var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
         if (reset.IsFailure)
         {
-            logger.LogDebug("Password reset failed for user {UserId}.", user.Id);
+            logger.LogWarning("Password reset failed for user {UserId}.", user.Id);
             return reset.Error.ToErrorList();
         }
 
-        await refreshSessionManager.RevokeAllForUserAsync(user.Id, DateTimeOffset.UtcNow, cancellationToken);
+        await refreshSessionManager.RevokeAllForUserAsync(user.Id, timeProvider.GetUtcNow(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Password reset completed for user {UserId}.", user.Id);
         return UnitResult.Success<ErrorList>();

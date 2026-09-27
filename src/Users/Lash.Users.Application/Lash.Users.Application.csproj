@@ -10,14 +10,16 @@
     <PackageReference Include="CSharpFunctionalExtensions" Version="3.7.0" />
     <PackageReference Include="ErrorsFlow" Version="2.0.1" />
     <PackageReference Include="FluentValidation" Version="12.1.1" />
+    <PackageReference Include="FluentValidation.DependencyInjectionExtensions" Version="12.1.1" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="10.0.12" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" Version="10.0.12" />
+    <PackageReference Include="Scrutor" Version="7.0.0" />
     <PackageReference Include="WebFlow.Abstractions" Version="2.1.0" />
     <PackageReference Include="WebFlow.FluentValidation" Version="2.1.0" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Lash.Users.Messaging\Lash.Users.Messaging.csproj" />
+    <ProjectReference Include="..\Lash.Users.Contracts\Lash.Users.Contracts.csproj" />
     <ProjectReference Include="..\Lash.Users.Domain\Lash.Users.Domain.csproj" />
   </ItemGroup>
 

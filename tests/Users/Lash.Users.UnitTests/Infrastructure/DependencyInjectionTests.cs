@@ -1,5 +1,6 @@
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Infrastructure;
+using Lash.Users.Infrastructure.Authorization;
 using Lash.Users.Infrastructure.Options;
 using Lash.Users.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authorization;

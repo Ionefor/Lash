@@ -1,7 +1,7 @@
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Features.Commands.ResendEmailConfirmation;
 using Lash.Users.Application.Models;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using Moq;
 using WebFlow.Abstractions.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -24,7 +24,7 @@ public sealed class ResendEmailConfirmationHandlerTests
             publisher.Object,
             limiter.Object,
             unitOfWork.Object,
-            NullLogger<ResendEmailConfirmationHandler>.Instance);
+            NullLogger<ResendEmailConfirmationHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new ResendEmailConfirmationCommand("user@example.com"));
 
@@ -53,7 +53,7 @@ public sealed class ResendEmailConfirmationHandlerTests
             publisher.Object,
             limiter.Object,
             unitOfWork.Object,
-            NullLogger<ResendEmailConfirmationHandler>.Instance);
+            NullLogger<ResendEmailConfirmationHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new ResendEmailConfirmationCommand("user@example.com"));
 

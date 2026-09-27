@@ -1,7 +1,7 @@
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Features.Commands.RequestPasswordReset;
 using Lash.Users.Application.Models;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;
 using WebFlow.Abstractions.Interfaces;
@@ -20,7 +20,7 @@ public sealed class RequestPasswordResetHandlerTests
             Mock.Of<IUsersEventPublisher>(),
             limiter.Object,
             Mock.Of<IUnitOfWork>(),
-            NullLogger<RequestPasswordResetHandler>.Instance);
+            NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("invalid"));
 
@@ -36,7 +36,7 @@ public sealed class RequestPasswordResetHandlerTests
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(false);
         var unitOfWork = new Mock<IUnitOfWork>();
-        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
 
@@ -57,7 +57,7 @@ public sealed class RequestPasswordResetHandlerTests
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
 
@@ -74,7 +74,7 @@ public sealed class RequestPasswordResetHandlerTests
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("unknown@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
         var unitOfWork = new Mock<IUnitOfWork>();
-        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance);
+        var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("unknown@example.com"));
 

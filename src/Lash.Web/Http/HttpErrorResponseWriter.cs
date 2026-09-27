@@ -16,7 +16,7 @@ public static class HttpErrorResponseWriter
             _ => throw new InvalidOperationException($"Unsupported status code: {httpContext.Response.StatusCode}.")
         };
 
-        return WriteAsync(httpContext, error, cancellationToken);
+        return WriteErrorAsync(httpContext, error, cancellationToken);
     }
 
     public static Task WriteRateLimitExceededAsync(
@@ -29,10 +29,13 @@ public static class HttpErrorResponseWriter
             httpContext.Response.Headers.RetryAfter = Math.Ceiling(delay.TotalSeconds).ToString(System.Globalization.CultureInfo.InvariantCulture);
         }
 
-        return WriteAsync(httpContext, WebErrors.RequestRateLimited(), cancellationToken);
+        return WriteErrorAsync(httpContext, WebErrors.RequestRateLimited(), cancellationToken);
     }
 
-    private static Task WriteAsync(HttpContext httpContext, ErrorsFlow.Models.Error error, CancellationToken cancellationToken)
+    public static Task WriteErrorAsync(
+        HttpContext httpContext,
+        ErrorsFlow.Models.Error error,
+        CancellationToken cancellationToken)
     {
         httpContext.Response.ContentType = "application/json";
         return httpContext.Response.WriteAsJsonAsync(

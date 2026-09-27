@@ -1,5 +1,5 @@
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using MassTransit;
 
 namespace Lash.Users.Infrastructure.Messaging;

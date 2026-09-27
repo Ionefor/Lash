@@ -1,4 +1,5 @@
 using Lash.Web.ExceptionHandling;
+using Lash.Users.Presentation;
 using Serilog;
 
 namespace Lash.Web.Extensions;
@@ -15,6 +16,9 @@ public static class WebServiceCollectionExtensions
             .Enrich.FromLogContext()
             .WriteTo.Console());
 
+        services
+            .AddLashHttp()
+            .AddUsersPresentation();
         services.AddLashModules(configuration);
         services.AddHealthChecks();
         services.AddExceptionHandler(options => options.ExceptionHandler = _ => Task.CompletedTask);

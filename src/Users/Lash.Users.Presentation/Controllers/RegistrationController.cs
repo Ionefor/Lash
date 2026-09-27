@@ -19,11 +19,11 @@ public sealed class RegistrationController : UsersApplicationController
     [AllowAnonymous]
     [EnableRateLimiting(UsersRateLimitPolicies.Registration)]
     public async Task<IActionResult> RegisterClient(
-        [FromBody] RegisterUserRequest request,
+        [FromBody] RegisterClientRequest request,
         [FromServices] ICommandHandler<RegisterClientCommand, Guid> handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.Handle(request.ToRegisterClientCommand(), cancellationToken);
+        var result = await handler.Handle(request.ToCommand(), cancellationToken);
 
         if (result.IsFailure)
         {
@@ -37,11 +37,11 @@ public sealed class RegistrationController : UsersApplicationController
     [AllowAnonymous]
     [EnableRateLimiting(UsersRateLimitPolicies.Registration)]
     public async Task<IActionResult> RegisterMaster(
-        [FromBody] RegisterUserRequest request,
+        [FromBody] RegisterMasterRequest request,
         [FromServices] ICommandHandler<RegisterMasterCommand, Guid> handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.Handle(request.ToRegisterMasterCommand(), cancellationToken);
+        var result = await handler.Handle(request.ToCommand(), cancellationToken);
 
         if (result.IsFailure)
         {

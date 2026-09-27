@@ -34,7 +34,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : OkEnvelope(result.Value);
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return OkEnvelope(result.Value);
     }
 
     [HttpPost("refresh")]
@@ -46,7 +52,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : OkEnvelope(result.Value);
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return OkEnvelope(result.Value);
     }
 
     [HttpPost("email/confirm")]
@@ -58,7 +70,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [HttpPost("email/confirmation/resend")]
@@ -70,7 +88,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [HttpPost("password/reset/request")]
@@ -82,7 +106,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [HttpPost("password/reset")]
@@ -94,7 +124,13 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         var result = await handler.Handle(request.ToCommand(), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [AllowAnonymous]
@@ -105,8 +141,14 @@ public sealed class AuthController : UsersApplicationController
         [FromServices] ICommandHandler<LogoutCommand> handler,
         CancellationToken cancellationToken)
     {
-        var result = await handler.Handle(new LogoutCommand(request.RefreshToken), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+        var result = await handler.Handle(request.ToCommand(), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [Authorize]
@@ -117,11 +159,18 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
+        {
             return Error(AuthErrors.Unauthorized().ToErrorList());
+        }
 
-        var command = new ChangePasswordCommand(userId, request.CurrentPassword, request.Password, request.ConfirmPassword);
-        var result = await handler.Handle(command, cancellationToken);
-        return result.IsFailure ? Error(result.Error) : NoContent();
+        var result = await handler.Handle(request.ToCommand(userId), cancellationToken);
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return NoContent();
     }
 
     [Authorize]
@@ -131,9 +180,17 @@ public sealed class AuthController : UsersApplicationController
         CancellationToken cancellationToken)
     {
         if (!TryGetUserId(out var userId))
+        {
             return Error(AuthErrors.Unauthorized().ToErrorList());
+        }
 
         var result = await handler.Handle(new GetCurrentUserQuery(userId), cancellationToken);
-        return result.IsFailure ? Error(result.Error) : OkEnvelope(result.Value);
+
+        if (result.IsFailure)
+        {
+            return Error(result.Error);
+        }
+
+        return OkEnvelope(result.Value);
     }
 }

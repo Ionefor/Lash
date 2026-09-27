@@ -1,7 +1,7 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
 
-namespace Lash.Users.Application.Abstractions;
+namespace Lash.Users.Infrastructure.Providers;
 
 public interface IPasswordResetSender
 {

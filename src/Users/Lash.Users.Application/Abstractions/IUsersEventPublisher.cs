@@ -1,4 +1,4 @@
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 
 namespace Lash.Users.Application.Abstractions;
 
