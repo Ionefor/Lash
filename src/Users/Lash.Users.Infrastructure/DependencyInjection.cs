@@ -94,6 +94,7 @@ public static class DependencyInjection
         services.AddMassTransit(configurator =>
         {
             configurator.AddConsumer<EmailConfirmationRequestedConsumer>();
+            configurator.AddConsumer<PasswordResetRequestedConsumer>();
             configurator.AddEntityFrameworkOutbox<UsersDbContext>(outbox =>
             {
                 outbox.UsePostgres();
@@ -110,6 +111,15 @@ public static class DependencyInjection
                 bus.ReceiveEndpoint("users-email-confirmation", endpoint =>
                 {
                     endpoint.ConfigureConsumer<EmailConfirmationRequestedConsumer>(context);
+                    endpoint.UseEntityFrameworkOutbox<UsersDbContext>(context);
+                    endpoint.UseMessageRetry(retry => retry.Intervals(
+                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromSeconds(5),
+                        TimeSpan.FromSeconds(30)));
+                });
+                bus.ReceiveEndpoint("users-password-reset", endpoint =>
+                {
+                    endpoint.ConfigureConsumer<PasswordResetRequestedConsumer>(context);
                     endpoint.UseEntityFrameworkOutbox<UsersDbContext>(context);
                     endpoint.UseMessageRetry(retry => retry.Intervals(
                         TimeSpan.FromSeconds(1),

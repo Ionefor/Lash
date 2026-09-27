@@ -13,19 +13,38 @@ namespace Lash.Users.UnitTests.Infrastructure.Seeding;
 public sealed class AdminSeederTests
 {
     [Fact]
-    public async Task SeedAsync_WhenAdminUserExistsWithoutRole_AddsAdminRole()
+    public async Task SeedAsync_WhenAdminUserExistsWithoutRole_ThrowsWithoutGrantingAdminRole()
     {
         var user = IdentityUserEntity.Create("admin@example.com");
         var userManager = CreateUserManager();
         userManager.Setup(manager => manager.FindByEmailAsync("admin@example.com")).ReturnsAsync(user);
         userManager.Setup(manager => manager.IsInRoleAsync(user, AccountRoleNames.Admin)).ReturnsAsync(false);
-        userManager.Setup(manager => manager.AddToRoleAsync(user, AccountRoleNames.Admin)).ReturnsAsync(IdentityResult.Success);
+        var unitOfWork = new Mock<IUnitOfWork>();
+        var seeder = CreateSeeder(userManager.Object, unitOfWork.Object);
+
+        var exception = await Assert.ThrowsAsync<InvalidOperationException>(() => seeder.SeedAsync());
+
+        Assert.Equal(
+            "Admin user cannot be seeded because the configured account already exists without the admin role.",
+            exception.Message);
+        userManager.Verify(manager => manager.AddToRoleAsync(user, AccountRoleNames.Admin), Times.Never);
+        userManager.Verify(manager => manager.CreateAsync(It.IsAny<IdentityUserEntity>(), It.IsAny<string>()), Times.Never);
+        unitOfWork.Verify(manager => manager.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
+    public async Task SeedAsync_WhenAdminUserAlreadyHasRole_CompletesWithoutChanges()
+    {
+        var user = IdentityUserEntity.Create("admin@example.com");
+        var userManager = CreateUserManager();
+        userManager.Setup(manager => manager.FindByEmailAsync("admin@example.com")).ReturnsAsync(user);
+        userManager.Setup(manager => manager.IsInRoleAsync(user, AccountRoleNames.Admin)).ReturnsAsync(true);
         var unitOfWork = new Mock<IUnitOfWork>();
         var seeder = CreateSeeder(userManager.Object, unitOfWork.Object);
 
         await seeder.SeedAsync();
 
-        userManager.Verify(manager => manager.AddToRoleAsync(user, AccountRoleNames.Admin), Times.Once);
+        userManager.Verify(manager => manager.AddToRoleAsync(It.IsAny<IdentityUserEntity>(), AccountRoleNames.Admin), Times.Never);
         userManager.Verify(manager => manager.CreateAsync(It.IsAny<IdentityUserEntity>(), It.IsAny<string>()), Times.Never);
         unitOfWork.Verify(manager => manager.BeginTransactionAsync(It.IsAny<CancellationToken>()), Times.Never);
     }

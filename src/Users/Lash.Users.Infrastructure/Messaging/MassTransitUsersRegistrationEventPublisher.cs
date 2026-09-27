@@ -10,21 +10,10 @@ public sealed class MassTransitUsersRegistrationEventPublisher(
     ILogger<MassTransitUsersRegistrationEventPublisher> logger)
     : IUsersEventPublisher
 {
-    public async Task PublishAsync(ClientRegistered integrationEvent, CancellationToken cancellationToken = default)
+    public async Task PublishAsync<TEvent>(TEvent integrationEvent, CancellationToken cancellationToken = default)
+        where TEvent : class, IUsersEvent
     {
         await publishEndpoint.Publish(integrationEvent, cancellationToken);
-        logger.LogInformation("Client registration event published for user {UserId}.", integrationEvent.UserId);
-    }
-
-    public async Task PublishAsync(MasterRegistered integrationEvent, CancellationToken cancellationToken = default)
-    {
-        await publishEndpoint.Publish(integrationEvent, cancellationToken);
-        logger.LogInformation("Master registration event published for user {UserId}.", integrationEvent.UserId);
-    }
-
-    public async Task PublishAsync(EmailConfirmationRequested integrationEvent, CancellationToken cancellationToken = default)
-    {
-        await publishEndpoint.Publish(integrationEvent, cancellationToken);
-        logger.LogInformation("Email confirmation request event published for user {UserId}.", integrationEvent.UserId);
+        logger.LogInformation("Users event {EventId} published for user {UserId}.", integrationEvent.EventId, integrationEvent.UserId);
     }
 }

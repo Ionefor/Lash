@@ -15,5 +15,10 @@ public interface IRefreshSessionManager
         DateTimeOffset revokedAt,
         CancellationToken cancellationToken = default);
 
+    Task RevokeAllForUserAsync(
+        Guid userId,
+        DateTimeOffset revokedAt,
+        CancellationToken cancellationToken = default);
+
     void Delete(RefreshSession refreshSession);
 }
