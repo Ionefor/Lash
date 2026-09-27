@@ -14,7 +14,7 @@ public sealed class RefreshSessionTests
 
         Assert.True(result.IsFailure);
         Assert.Equal(GeneralErrorCodes.ValueIsInvalid, result.Error.Code);
-        Assert.Equal(nameof(RefreshSession.ExpiresAt), result.Error.Target);
+        Assert.Equal("expiresAt", result.Error.Target);
     }
 
     [Fact]

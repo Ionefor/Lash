@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using WebFlow.Abstractions.Interfaces;
 
 namespace Lash.Users.Infrastructure;
@@ -85,47 +86,39 @@ public static class DependencyInjection
             .Bind(configuration.GetSection(DatabaseInitializationOptions.SectionName));
         services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName)).Validate(options => !string.IsNullOrWhiteSpace(options.Host) && !string.IsNullOrWhiteSpace(options.FromAddress), "Email SMTP settings are required.").ValidateOnStart();
 
-        var rabbitMqOptions = configuration.GetSection(RabbitMqOptions.SectionName).Get<RabbitMqOptions>()
-            ?? new RabbitMqOptions();
         services.AddOptions<RabbitMqOptions>()
             .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
-            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required when RabbitMq is enabled.")
+            .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required.")
             .ValidateOnStart();
 
-        if (rabbitMqOptions.Enabled)
+        services.AddMassTransit(configurator =>
         {
-            services.AddMassTransit(configurator =>
+            configurator.AddConsumer<EmailConfirmationRequestedConsumer>();
+            configurator.AddEntityFrameworkOutbox<UsersDbContext>(outbox =>
             {
-                configurator.AddConsumer<EmailConfirmationRequestedConsumer>();
-                configurator.AddEntityFrameworkOutbox<UsersDbContext>(outbox =>
+                outbox.UsePostgres();
+                outbox.UseBusOutbox();
+            });
+            configurator.UsingRabbitMq((context, bus) =>
+            {
+                var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
+                bus.Host(rabbitMqOptions.Host, rabbitMqOptions.VirtualHost, host =>
                 {
-                    outbox.UsePostgres();
-                    outbox.UseBusOutbox();
+                    host.Username(rabbitMqOptions.UserName);
+                    host.Password(rabbitMqOptions.Password);
                 });
-                configurator.UsingRabbitMq((_, bus) =>
+                bus.ReceiveEndpoint("users-email-confirmation", endpoint =>
                 {
-                    bus.Host(rabbitMqOptions.Host, rabbitMqOptions.VirtualHost, host =>
-                    {
-                        host.Username(rabbitMqOptions.UserName);
-                        host.Password(rabbitMqOptions.Password);
-                    });
-                    bus.ReceiveEndpoint("users-email-confirmation", endpoint =>
-                    {
-                        endpoint.ConfigureConsumer<EmailConfirmationRequestedConsumer>(_);
-                        endpoint.UseEntityFrameworkOutbox<UsersDbContext>(_);
-                        endpoint.UseMessageRetry(retry => retry.Intervals(
-                            TimeSpan.FromSeconds(1),
-                            TimeSpan.FromSeconds(5),
-                            TimeSpan.FromSeconds(30)));
-                    });
+                    endpoint.ConfigureConsumer<EmailConfirmationRequestedConsumer>(context);
+                    endpoint.UseEntityFrameworkOutbox<UsersDbContext>(context);
+                    endpoint.UseMessageRetry(retry => retry.Intervals(
+                        TimeSpan.FromSeconds(1),
+                        TimeSpan.FromSeconds(5),
+                        TimeSpan.FromSeconds(30)));
                 });
             });
-            services.AddScoped<IUsersEventPublisher, MassTransitUsersRegistrationEventPublisher>();
-        }
-        else
-        {
-            services.AddScoped<IUsersEventPublisher, DisabledUserRegistrationEventPublisher>();
-        }
+        });
+        services.AddScoped<IUsersEventPublisher, MassTransitUsersRegistrationEventPublisher>();
 
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? new JwtOptions();

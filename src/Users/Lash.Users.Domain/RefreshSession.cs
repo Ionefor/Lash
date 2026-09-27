@@ -54,22 +54,22 @@ public sealed class RefreshSession
     {
         if (userId == Guid.Empty)
         {
-            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid(nameof(UserId)));
+            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid("userId"));
         }
 
         if (jti == Guid.Empty)
         {
-            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid(nameof(Jti)));
+            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid("jti"));
         }
 
         if (string.IsNullOrWhiteSpace(tokenHash))
         {
-            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsRequired(nameof(TokenHash)));
+            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsRequired("tokenHash"));
         }
 
         if (expiresAt <= createdAt)
         {
-            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid(nameof(ExpiresAt)));
+            return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid("expiresAt"));
         }
 
         return Result.Success<RefreshSession, Error>(new RefreshSession(userId, jti, tokenHash, createdAt, expiresAt));
@@ -84,7 +84,7 @@ public sealed class RefreshSession
 
         if (revokedAt < CreatedAt)
         {
-            return UnitResult.Failure(GeneralErrors.ValueIsInvalid(nameof(revokedAt)));
+            return UnitResult.Failure(GeneralErrors.ValueIsInvalid("revokedAt"));
         }
 
         RevokedAt = revokedAt;

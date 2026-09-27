@@ -88,6 +88,20 @@ public sealed class DependencyInjectionTests
             serviceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value);
     }
 
+    [Fact]
+    public void AddUsersInfrastructure_WhenRabbitMqHostIsEmpty_RejectsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("RabbitMq:Host", ""));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<RabbitMqOptions>>().Value);
+    }
+
     private static IConfiguration CreateConfiguration(params KeyValuePair<string, string?>[] values) =>
         new ConfigurationBuilder()
             .AddInMemoryCollection(new Dictionary<string, string?>
