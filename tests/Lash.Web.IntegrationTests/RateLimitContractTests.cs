@@ -55,5 +55,6 @@ public sealed class RateLimitContractTests(LashWebApplicationFactory factory) : 
         Assert.Equal(WebErrorCodes.RequestRateLimited, error.GetProperty("code").GetString());
         Assert.Equal((int)ErrorType.Failure, error.GetProperty("type").GetInt32());
         Assert.Equal("request", error.GetProperty("target").GetString());
+        Assert.True(response.Headers.RetryAfter?.Delta > TimeSpan.Zero);
     }
 }

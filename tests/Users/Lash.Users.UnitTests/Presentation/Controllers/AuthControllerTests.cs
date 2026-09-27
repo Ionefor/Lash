@@ -38,7 +38,7 @@ public sealed class AuthControllerTests
 
         var result = await new AuthController().Login(new LoginRequest("user@example.com", "Password1!"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
@@ -63,7 +63,7 @@ public sealed class AuthControllerTests
 
         var result = await new AuthController().Refresh(new RefreshTokensRequest("access", "refresh"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     [Fact]
@@ -84,7 +84,7 @@ public sealed class AuthControllerTests
 
         var result = await new AuthController().Logout(new LogoutRequest("refresh"), handler.Object, CancellationToken.None);
 
-        Assert.IsAssignableFrom<ObjectResult>(result);
+        Assert.Equal(400, Assert.IsAssignableFrom<ObjectResult>(result).StatusCode);
     }
 
     private static Mock<ICommandHandler<TCommand>> SuccessfulHandler<TCommand>() where TCommand : ICommand
