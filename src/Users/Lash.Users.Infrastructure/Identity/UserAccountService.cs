@@ -52,9 +52,14 @@ public sealed class UserAccountService(
     public async Task<UnitResult<Error>> ConfirmEmailAsync(Guid userId, string code, CancellationToken cancellationToken = default)
     {
         var user = await userManager.FindByIdAsync(userId.ToString());
-        return user is not null && (await userManager.ConfirmEmailAsync(user, code)).Succeeded
-            ? UnitResult.Success<Error>()
-            : UnitResult.Failure(UsersApplicationErrors.EmailConfirmationCodeInvalid());
+        if (user is null) return UnitResult.Failure(UsersApplicationErrors.EmailConfirmationCodeInvalid());
+
+        var result = await userManager.ConfirmEmailAsync(user, code);
+        if (result.Succeeded) return UnitResult.Success<Error>();
+
+        return result.Errors.Any(error => error.Code == nameof(IdentityErrorDescriber.InvalidToken))
+            ? UnitResult.Failure(UsersApplicationErrors.EmailConfirmationCodeInvalid())
+            : UnitResult.Failure(Map(result));
     }
 
     public async Task<UnitResult<Error>> ResetPasswordAsync(Guid userId, string code, string password, CancellationToken cancellationToken = default)
@@ -83,9 +88,9 @@ public sealed class UserAccountService(
         var error = result.Errors.FirstOrDefault();
         return error?.Code switch
         {
-            nameof(IdentityErrorDescriber.DuplicateUserName) or nameof(IdentityErrorDescriber.DuplicateEmail) => GeneralErrors.ValueAlreadyExists("Email"),
-            nameof(IdentityErrorDescriber.InvalidEmail) or nameof(IdentityErrorDescriber.InvalidUserName) => GeneralErrors.ValueIsInvalid("Email"),
-            nameof(IdentityErrorDescriber.PasswordTooShort) or nameof(IdentityErrorDescriber.PasswordRequiresNonAlphanumeric) or nameof(IdentityErrorDescriber.PasswordRequiresDigit) or nameof(IdentityErrorDescriber.PasswordRequiresLower) or nameof(IdentityErrorDescriber.PasswordRequiresUpper) or nameof(IdentityErrorDescriber.PasswordRequiresUniqueChars) => GeneralErrors.ValueIsInvalid("Password"),
+            nameof(IdentityErrorDescriber.DuplicateUserName) or nameof(IdentityErrorDescriber.DuplicateEmail) => GeneralErrors.ValueAlreadyExists("email"),
+            nameof(IdentityErrorDescriber.InvalidEmail) or nameof(IdentityErrorDescriber.InvalidUserName) => GeneralErrors.ValueIsInvalid("email"),
+            nameof(IdentityErrorDescriber.PasswordTooShort) or nameof(IdentityErrorDescriber.PasswordRequiresNonAlphanumeric) or nameof(IdentityErrorDescriber.PasswordRequiresDigit) or nameof(IdentityErrorDescriber.PasswordRequiresLower) or nameof(IdentityErrorDescriber.PasswordRequiresUpper) or nameof(IdentityErrorDescriber.PasswordRequiresUniqueChars) => GeneralErrors.ValueIsInvalid("password"),
             _ => GeneralErrors.Failed("Unable to process user account.")
         };
     }
