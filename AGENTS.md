@@ -9,6 +9,17 @@
 - `Presentation` преобразует HTTP-запросы в команды и результаты use cases в HTTP-ответы. Бизнес-правила в контроллерах не размещаются.
 - Новые пакеты должны поддерживать `net10.0`. Пакеты семейства WebFlow используют одну согласованную версию во всех проектах модуля.
 
+## Application features
+
+- Command feature размещается в `Application/Features/Commands/<FeatureName>` и содержит `<FeatureName>Command.cs`, `<FeatureName>Handler.cs` и при наличии входных ограничений `<FeatureName>CommandValidator.cs`.
+- Query feature размещается в `Application/Features/Queries/<FeatureName>` и содержит `<FeatureName>Query.cs`, `<FeatureName>Handler.cs` и при наличии входных ограничений `<FeatureName>QueryValidator.cs`.
+- Command и query содержат только входные данные use case. Они не содержат HTTP-типов, инфраструктурных типов, бизнес-правил и логирования.
+- Handler реализует соответствующий `ICommandHandler` или `IQueryHandler`. Он сначала валидирует вход, затем вызывает порты Application, применяет правила use case и возвращает `Result` или `UnitResult`.
+- Handler не знает о HTTP, EF Core, Identity, MassTransit, RabbitMQ, реализации хранилища или транспорте. Внешние операции выполняются через порты из `Application/Abstractions`.
+- Переиспользуемые FluentValidation-правила размещаются в `Application/Extensions`. Модульные ошибки размещаются в `Application/Errors`, а интеграционные контракты — в проекте `Contracts`.
+- Если use case принимает решение на основе текущего времени, handler получает `TimeProvider` через конструктор и использует `GetUtcNow()`. Прямой вызов `DateTimeOffset.UtcNow` или `DateTime.UtcNow` в Application запрещён.
+- Unit-тесты feature повторяют путь исходников в `tests/<Module>/Lash.<Module>.UnitTests/Application/Features`. Они покрывают успешный сценарий, каждый изменённый error code/type/target и отсутствие вызова портов при невалидном вводе.
+
 ## Логирование по слоям
 
 - `Domain` не использует `ILogger` и не пишет логи. Доменные правила выражаются через `Result` и `Error`.

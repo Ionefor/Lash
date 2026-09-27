@@ -47,6 +47,29 @@ public sealed class LoginHandlerTests
     }
 
     [Fact]
+    public async Task Handle_WhenAccountIsNotFoundButAuthenticationSucceeds_ReturnsCredentialsInvalid()
+    {
+        var user = new UserAccount(Guid.NewGuid(), "user@example.com", true);
+        var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Password1!", It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<UserAccount, Error>(user));
+        var tokens = new Mock<ITokenProvider>();
+        var handler = new LoginHandler(
+            new LoginCommandValidator(),
+            accounts.Object,
+            tokens.Object,
+            CreateUnitOfWork().Object,
+            CreateUserSessionLock().Object,
+            NullLogger<LoginHandler>.Instance);
+
+        var result = await handler.Handle(new LoginCommand("user@example.com", "Password1!"));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(AuthErrorCodes.CredentialsInvalid, result.Error[0].Code);
+        tokens.Verify(item => item.GenerateAccessTokenAsync(It.IsAny<UserAccount>(), It.IsAny<CancellationToken>()), Times.Never);
+    }
+
+    [Fact]
     public async Task Handle_WhenEmailIsNotConfirmed_ReturnsEmailNotConfirmedWithoutGeneratingTokens()
     {
         var user = new UserAccount(Guid.NewGuid(), "user@example.com", false);

@@ -1,4 +1,5 @@
 using Lash.Users.Application.Abstractions;
+using Lash.Users.Infrastructure.Authorization;
 using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.DbContexts;
 using Microsoft.EntityFrameworkCore;

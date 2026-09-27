@@ -1,3 +1,5 @@
+using ErrorsFlow.Errors;
+using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Features.Queries.GetCurrentUser;
 using Lash.Users.Application.Models;
@@ -35,5 +37,22 @@ public sealed class GetCurrentUserHandlerTests
         Assert.Equal(user.Id, result.Value.Id);
         Assert.Equal("user@example.com", result.Value.Email);
         Assert.Equal(["client"], result.Value.Roles);
+    }
+
+    [Fact]
+    public async Task Handle_WhenUserDoesNotExist_ReturnsNotFoundForUserId()
+    {
+        var userId = Guid.NewGuid();
+        var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.FindByIdAsync(userId, It.IsAny<CancellationToken>())).ReturnsAsync((UserAccount?)null);
+        var handler = new GetCurrentUserHandler(new GetCurrentUserQueryValidator(), accounts.Object, NullLogger<GetCurrentUserHandler>.Instance);
+
+        var result = await handler.Handle(new GetCurrentUserQuery(userId));
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(GeneralErrorCodes.NotFound, result.Error[0].Code);
+        Assert.Equal(ErrorType.NotFound, result.Error[0].Type);
+        Assert.Equal(nameof(GetCurrentUserQuery.UserId), result.Error[0].Target);
+        accounts.Verify(item => item.GetRolesAsync(It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Never);
     }
 }

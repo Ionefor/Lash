@@ -4,7 +4,7 @@ using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Constants;
 using Lash.Users.Application.Features.Commands.RegisterMaster;
 using Lash.Users.Application.Models;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using Moq;
 using WebFlow.Abstractions.Interfaces;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -28,7 +28,7 @@ public sealed class RegisterMasterHandlerTests
         var unitOfWork = new Mock<IUnitOfWork>();
         unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
         unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
-        var handler = new RegisterMasterHandler(new RegisterMasterCommandValidator(), accounts.Object, publisher.Object, unitOfWork.Object, NullLogger<RegisterMasterHandler>.Instance);
+        var handler = new RegisterMasterHandler(new RegisterMasterCommandValidator(), accounts.Object, publisher.Object, unitOfWork.Object, NullLogger<RegisterMasterHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RegisterMasterCommand("master@example.com", "Password1!", "Password1!"));
 

@@ -6,7 +6,7 @@ using Lash.Users.Application.Abstractions;
 using Lash.Users.Application.Constants;
 using Lash.Users.Application.Extensions;
 using Lash.Users.Application.Models;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
 using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
 using WebFlow.FluentValidation.Extensions;
@@ -20,19 +20,20 @@ public sealed class RegisterClientHandler : ICommandHandler<RegisterClientComman
     private readonly IUsersEventPublisher _eventPublisher;
     private readonly IUnitOfWork _unitOfWork;
     private readonly ILogger<RegisterClientHandler> _logger;
+    private readonly TimeProvider _timeProvider;
 
-    public RegisterClientHandler(
-        IValidator<RegisterClientCommand> validator,
+    public RegisterClientHandler(IValidator<RegisterClientCommand> validator,
         IUserAccountService accounts,
         IUsersEventPublisher eventPublisher,
         IUnitOfWork unitOfWork,
-        ILogger<RegisterClientHandler> logger)
+        ILogger<RegisterClientHandler> logger, TimeProvider timeProvider)
     {
         _validator = validator;
         _accounts = accounts;
         _eventPublisher = eventPublisher;
         _unitOfWork = unitOfWork;
         _logger = logger;
+        _timeProvider = timeProvider;
     }
 
     public async Task<Result<Guid, ErrorList>> Handle(
@@ -64,11 +65,11 @@ public sealed class RegisterClientHandler : ICommandHandler<RegisterClientComman
         await _eventPublisher.PublishAsync(new ClientRegistered(
             Guid.NewGuid(),
             creation.Value.Id,
-            DateTimeOffset.UtcNow), cancellationToken);
+            _timeProvider.GetUtcNow()), cancellationToken);
         await _eventPublisher.PublishAsync(new EmailConfirmationRequested(
             Guid.NewGuid(),
             creation.Value.Id,
-            DateTimeOffset.UtcNow), cancellationToken);
+            _timeProvider.GetUtcNow()), cancellationToken);
         await _unitOfWork.SaveChangesAsync(cancellationToken);
         await transaction.CommitAsync(cancellationToken);
 

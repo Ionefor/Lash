@@ -1,5 +1,6 @@
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Messaging.Events;
+using Lash.Users.Contracts.Events;
+using Lash.Users.Infrastructure.Providers;
 using MassTransit;
 using Microsoft.Extensions.Logging;
 

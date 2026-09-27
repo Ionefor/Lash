@@ -2,17 +2,17 @@ using Lash.Users.Presentation.Requests;
 
 namespace Lash.Users.UnitTests.Presentation.Requests;
 
-public sealed class RegisterUserRequestTests
+public sealed class RegisterRequestsTests
 {
     [Fact]
-    public void ToRegisterClientCommand_WhenCalled_MapsAllRequestValues()
+    public void RegisterClientRequest_ToCommand_MapsAllRequestValues()
     {
-        var request = new RegisterUserRequest(
+        var request = new RegisterClientRequest(
             "client@example.com",
             "Password1!",
             "Password1!");
 
-        var command = request.ToRegisterClientCommand();
+        var command = request.ToCommand();
 
         Assert.Equal("client@example.com", command.Email);
         Assert.Equal("Password1!", command.Password);
@@ -20,14 +20,14 @@ public sealed class RegisterUserRequestTests
     }
 
     [Fact]
-    public void ToRegisterMasterCommand_WhenCalled_MapsAllRequestValues()
+    public void RegisterMasterRequest_ToCommand_MapsAllRequestValues()
     {
-        var request = new RegisterUserRequest(
+        var request = new RegisterMasterRequest(
             "master@example.com",
             "Password1!",
             "Password1!");
 
-        var command = request.ToRegisterMasterCommand();
+        var command = request.ToCommand();
 
         Assert.Equal("master@example.com", command.Email);
         Assert.Equal("Password1!", command.Password);

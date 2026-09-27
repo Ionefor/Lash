@@ -16,7 +16,8 @@ public sealed class ChangePasswordHandler(
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
     IUserSessionLock userSessionLock,
-    ILogger<ChangePasswordHandler> logger) : ICommandHandler<ChangePasswordCommand>
+    ILogger<ChangePasswordHandler> logger,
+    TimeProvider timeProvider) : ICommandHandler<ChangePasswordCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ChangePasswordCommand command, CancellationToken cancellationToken = default)
     {
@@ -41,11 +42,11 @@ public sealed class ChangePasswordHandler(
         var change = await accounts.ChangePasswordAsync(user.Id, command.CurrentPassword, command.Password, cancellationToken);
         if (change.IsFailure)
         {
-            logger.LogDebug("Password change failed for user {UserId}.", user.Id);
+            logger.LogWarning("Password change failed for user {UserId}.", user.Id);
             return change.Error.ToErrorList();
         }
 
-        await refreshSessionManager.RevokeAllForUserAsync(user.Id, DateTimeOffset.UtcNow, cancellationToken);
+        await refreshSessionManager.RevokeAllForUserAsync(user.Id, timeProvider.GetUtcNow(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);
         logger.LogInformation("Password changed for user {UserId}.", user.Id);
         return UnitResult.Success<ErrorList>();

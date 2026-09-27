@@ -1,6 +1,5 @@
 using Lash.Users.Application;
 using Lash.Users.Infrastructure;
-using Lash.Users.Presentation.Extensions;
 using Lash.Users.Presentation.RateLimiting;
 using Lash.Web.Http;
 using Microsoft.AspNetCore.RateLimiting;
@@ -14,10 +13,6 @@ public static class ModuleServiceCollectionExtensions
         this IServiceCollection services,
         IConfiguration configuration)
     {
-        services
-            .AddControllers()
-            .AddUsersPresentation();
-
         services.AddUsersModule(configuration);
         services.AddLashRateLimiting();
         return services;
@@ -51,7 +46,7 @@ public static class ModuleServiceCollectionExtensions
                         PermitLimit = 10,
                         Window = TimeSpan.FromMinutes(15),
                         QueueLimit = 0
-            }));
+                    }));
             options.AddPolicy(UsersRateLimitPolicies.Login, context =>
                 RateLimitPartition.GetSlidingWindowLimiter(
                     context.Connection.RemoteIpAddress?.ToString() ?? "unknown",

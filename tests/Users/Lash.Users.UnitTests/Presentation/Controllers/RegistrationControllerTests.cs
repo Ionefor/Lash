@@ -19,7 +19,7 @@ public sealed class RegistrationControllerTests
         var userId = Guid.NewGuid();
         var handler = new RegisterClientHandlerStub(userId);
         var controller = new RegistrationController();
-        var request = new RegisterUserRequest(
+        var request = new RegisterClientRequest(
             "client@example.com",
             "Password1!",
             "Password1!");
@@ -40,7 +40,7 @@ public sealed class RegistrationControllerTests
         var userId = Guid.NewGuid();
         var handler = new RegisterMasterHandlerStub(userId);
         var controller = new RegistrationController();
-        var request = new RegisterUserRequest(
+        var request = new RegisterMasterRequest(
             "master@example.com",
             "Password1!",
             "Password1!");

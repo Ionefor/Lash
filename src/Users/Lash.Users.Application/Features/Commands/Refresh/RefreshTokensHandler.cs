@@ -15,21 +15,22 @@ public sealed class RefreshTokensHandler(
     ITokenProvider tokenProvider,
     IUnitOfWork unitOfWork,
     IUserSessionLock userSessionLock,
-    ILogger<RefreshTokensHandler> logger) : ICommandHandler<RefreshTokensCommand, AuthTokens>
+    ILogger<RefreshTokensHandler> logger,
+    TimeProvider timeProvider) : ICommandHandler<RefreshTokensCommand, AuthTokens>
 {
     public async Task<Result<AuthTokens, ErrorList>> Handle(RefreshTokensCommand command, CancellationToken cancellationToken = default)
     {
         var session = await refreshSessionManager.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
         if (session.IsFailure)
         {
-            logger.LogDebug("Token refresh failed because refresh session was invalid.");
+            logger.LogWarning("Token refresh failed because refresh session was invalid.");
             return session.Error.ToErrorList();
         }
 
         var claims = await tokenProvider.GetClaimsFromExpiredAccessTokenAsync(command.AccessToken, cancellationToken);
         if (claims.IsFailure)
         {
-            logger.LogDebug("Token refresh failed because access token was invalid.");
+            logger.LogWarning("Token refresh failed because access token was invalid.");
             return claims.Error.ToErrorList();
         }
 
@@ -61,9 +62,9 @@ public sealed class RefreshTokensHandler(
             return AuthErrors.TokenInvalid().ToErrorList();
         }
 
-        if (!await refreshSessionManager.TryRevokeAsync(session.Value.Id, DateTimeOffset.UtcNow, cancellationToken))
+        if (!await refreshSessionManager.TryRevokeAsync(session.Value.Id, timeProvider.GetUtcNow(), cancellationToken))
         {
-            logger.LogDebug("Token refresh failed because refresh session was already revoked.");
+            logger.LogWarning("Token refresh failed because refresh session was already revoked.");
             return AuthErrors.RefreshTokenInvalid().ToErrorList();
         }
 

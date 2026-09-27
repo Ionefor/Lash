@@ -1,8 +1,8 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Messaging.Events;
 using FluentValidation;
+using Lash.Users.Contracts.Events;
 using Microsoft.Extensions.Logging;
 using WebFlow.Abstractions.Interfaces;
 using WebFlow.FluentValidation.Extensions;
@@ -15,7 +15,8 @@ public sealed class RequestPasswordResetHandler(
     IUsersEventPublisher eventPublisher,
     IIdentityEmailRequestLimiter limiter,
     IUnitOfWork unitOfWork,
-    ILogger<RequestPasswordResetHandler> logger) : ICommandHandler<RequestPasswordResetCommand>
+    ILogger<RequestPasswordResetHandler> logger,
+    TimeProvider timeProvider) : ICommandHandler<RequestPasswordResetCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(
         RequestPasswordResetCommand command,
@@ -30,7 +31,7 @@ public sealed class RequestPasswordResetHandler(
 
         if (!await limiter.TryAcquireAsync(command.Email, IdentityEmailOperation.PasswordReset, cancellationToken))
         {
-            logger.LogDebug("Password reset request was rate limited.");
+            logger.LogWarning("Password reset request was rate limited.");
             return UnitResult.Success<ErrorList>();
         }
 
@@ -40,13 +41,11 @@ public sealed class RequestPasswordResetHandler(
             await eventPublisher.PublishAsync(new PasswordResetRequested(
                 Guid.NewGuid(),
                 user.Id,
-                DateTimeOffset.UtcNow), cancellationToken);
+                timeProvider.GetUtcNow()), cancellationToken);
             logger.LogInformation("Password reset requested for user {UserId}.", user.Id);
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
-        logger.LogDebug("Password reset request completed.");
-
         return UnitResult.Success<ErrorList>();
     }
 }

@@ -12,7 +12,7 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lash.Users.Infrastructure",
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lash.Users.Presentation", "src\Users\Lash.Users.Presentation\Lash.Users.Presentation.csproj", "{0B806853-196A-45B8-AF15-D0D74F4AF149}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lash.Users.Messaging", "src\Users\Lash.Users.Messaging\Lash.Users.Messaging.csproj", "{9F860D30-D125-4E1F-8801-BE9C49AE13F3}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Lash.Users.Contracts", "src\Users\Lash.Users.Contracts\Lash.Users.Contracts.csproj", "{9F860D30-D125-4E1F-8801-BE9C49AE13F3}"
 EndProject
 Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "tests", "tests", "{0AB3BF05-4346-4AA6-1389-037BE0695223}"
 EndProject

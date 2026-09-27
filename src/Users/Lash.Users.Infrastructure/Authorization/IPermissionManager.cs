@@ -1,4 +1,4 @@
-namespace Lash.Users.Application.Abstractions;
+namespace Lash.Users.Infrastructure.Authorization;
 
 public interface IPermissionManager
 {

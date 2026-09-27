@@ -31,8 +31,8 @@ public sealed class LoginHandler(
         var candidate = await accounts.FindByEmailAsync(command.Email, cancellationToken);
         if (candidate is null)
         {
-            var unknownAccountAuthentication = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
-            return unknownAccountAuthentication.Error.ToErrorList();
+            _ = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
+            return AuthErrors.CredentialsInvalid().ToErrorList();
         }
 
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -44,7 +44,7 @@ public sealed class LoginHandler(
         var authentication = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
         if (authentication.IsFailure)
         {
-            logger.LogDebug("Login failed because credentials were invalid.");
+            logger.LogWarning("Login failed because credentials were invalid.");
             await transaction.CommitAsync(cancellationToken);
             return authentication.Error.ToErrorList();
         }
@@ -52,7 +52,7 @@ public sealed class LoginHandler(
 
         if (!user.EmailConfirmed)
         {
-            logger.LogDebug("Login was rejected because email is not confirmed for user {UserId}.", user.Id);
+            logger.LogWarning("Login was rejected because email is not confirmed for user {UserId}.", user.Id);
             await transaction.CommitAsync(cancellationToken);
             return UsersApplicationErrors.EmailNotConfirmed().ToErrorList();
         }

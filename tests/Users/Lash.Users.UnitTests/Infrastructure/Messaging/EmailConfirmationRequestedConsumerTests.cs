@@ -1,9 +1,9 @@
 using CSharpFunctionalExtensions;
 using ErrorsFlow;
 using ErrorsFlow.Models;
+using Lash.Users.Contracts.Events;
 using Lash.Users.Infrastructure.Messaging;
 using Lash.Users.Infrastructure.Providers;
-using Lash.Users.Messaging.Events;
 using MassTransit;
 using Microsoft.Extensions.Logging.Abstractions;
 using Moq;

@@ -11,14 +11,15 @@ public sealed class LogoutHandler(
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
     IUserSessionLock userSessionLock,
-    ILogger<LogoutHandler> logger) : ICommandHandler<LogoutCommand>
+    ILogger<LogoutHandler> logger,
+    TimeProvider timeProvider) : ICommandHandler<LogoutCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(LogoutCommand command, CancellationToken cancellationToken = default)
     {
         var session = await refreshSessionManager.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
         if (session.IsFailure)
         {
-            logger.LogDebug("Logout failed because refresh session was invalid.");
+            logger.LogWarning("Logout failed because refresh session was invalid.");
             return session.Error.ToErrorList();
         }
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
@@ -28,9 +29,9 @@ public sealed class LogoutHandler(
         }
 
         session = await refreshSessionManager.GetByRefreshTokenAsync(command.RefreshToken, cancellationToken);
-        if (session.IsFailure || !await refreshSessionManager.TryRevokeAsync(session.Value.Id, DateTimeOffset.UtcNow, cancellationToken))
+        if (session.IsFailure || !await refreshSessionManager.TryRevokeAsync(session.Value.Id, timeProvider.GetUtcNow(), cancellationToken))
         {
-            logger.LogDebug("Logout failed because refresh session could not be revoked.");
+            logger.LogWarning("Logout failed because refresh session could not be revoked.");
             return AuthErrors.RefreshTokenInvalid().ToErrorList();
         }
 

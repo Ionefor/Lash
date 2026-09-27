@@ -35,7 +35,6 @@ public sealed class GetCurrentUserHandler(
         }
 
         var roles = await accounts.GetRolesAsync(user.Id, cancellationToken);
-        logger.LogDebug("Current user profile was retrieved for user {UserId}.", user.Id);
         return new UserProfile(user.Id, user.Email, roles);
     }
 }
