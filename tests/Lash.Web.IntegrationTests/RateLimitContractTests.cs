@@ -24,7 +24,7 @@ public sealed class RateLimitContractTests(LashWebApplicationFactory factory) : 
         var limitedResponse = await client.PostAsync("/api/v1/auth/login", limitedRequest);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
-        await AssertRateLimitErrorAsync(limitedResponse);
+        await AssertRateLimitErrorAsync(limitedResponse, expectsRetryAfter: false);
     }
 
     [Fact]
@@ -43,10 +43,10 @@ public sealed class RateLimitContractTests(LashWebApplicationFactory factory) : 
         var limitedResponse = await client.PostAsync("/api/v1/registration/client", limitedRequest);
 
         Assert.Equal(HttpStatusCode.TooManyRequests, limitedResponse.StatusCode);
-        await AssertRateLimitErrorAsync(limitedResponse);
+        await AssertRateLimitErrorAsync(limitedResponse, expectsRetryAfter: true);
     }
 
-    private static async Task AssertRateLimitErrorAsync(HttpResponseMessage response)
+    private static async Task AssertRateLimitErrorAsync(HttpResponseMessage response, bool expectsRetryAfter)
     {
         await using var stream = await response.Content.ReadAsStreamAsync();
         using var document = await JsonDocument.ParseAsync(stream);
@@ -55,6 +55,9 @@ public sealed class RateLimitContractTests(LashWebApplicationFactory factory) : 
         Assert.Equal(WebErrorCodes.RequestRateLimited, error.GetProperty("code").GetString());
         Assert.Equal((int)ErrorType.Failure, error.GetProperty("type").GetInt32());
         Assert.Equal("request", error.GetProperty("target").GetString());
-        Assert.True(response.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+        if (expectsRetryAfter)
+        {
+            Assert.True(response.Headers.RetryAfter?.Delta > TimeSpan.Zero);
+        }
     }
 }

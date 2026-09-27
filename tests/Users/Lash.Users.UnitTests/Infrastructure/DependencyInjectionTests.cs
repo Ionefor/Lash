@@ -26,7 +26,13 @@ public sealed class DependencyInjectionTests
                 ["Jwt:Key"] = "a-secure-signing-key-with-at-least-32-characters",
                 ["Jwt:ExpiredMinutesTime"] = "15",
                 ["Jwt:RefreshTokenLifetimeDays"] = "30",
-                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60"
+                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60",
+                ["Email:Host"] = "localhost",
+                ["Email:FromAddress"] = "noreply@example.com",
+                ["RabbitMq:Host"] = "localhost",
+                ["RabbitMq:VirtualHost"] = "/",
+                ["RabbitMq:UserName"] = "guest",
+                ["RabbitMq:Password"] = "guest"
             })
             .Build();
         var services = new ServiceCollection();
@@ -113,7 +119,15 @@ public sealed class DependencyInjectionTests
                 ["Jwt:Key"] = "a-secure-signing-key-with-at-least-32-characters",
                 ["Jwt:ExpiredMinutesTime"] = "15",
                 ["Jwt:RefreshTokenLifetimeDays"] = "30",
-                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60"
-            }.Concat(values).ToDictionary(item => item.Key, item => item.Value))
+                ["Jwt:RefreshTokenAbsoluteLifetimeDays"] = "60",
+                ["Email:Host"] = "localhost",
+                ["Email:FromAddress"] = "noreply@example.com",
+                ["RabbitMq:Host"] = "localhost",
+                ["RabbitMq:VirtualHost"] = "/",
+                ["RabbitMq:UserName"] = "guest",
+                ["RabbitMq:Password"] = "guest"
+            }.Concat(values)
+                .GroupBy(item => item.Key)
+                .ToDictionary(group => group.Key, group => group.Last().Value))
             .Build();
 }
