@@ -1,15 +1,20 @@
-using Lash.Users.Domain;
+using Lash.Users.Application.Constants;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
+using WebFlow.Abstractions.Interfaces;
 
 namespace Lash.Users.Infrastructure.Seeding;
 
 public sealed class AdminSeeder(
     IOptions<AdminOptions> options,
-    RoleManager<Role> roleManager,
-    UserManager<User> userManager)
+    RoleManager<IdentityRoleEntity> roleManager,
+    UserManager<IdentityUserEntity> userManager,
+    IUnitOfWork unitOfWork) : ISeeder
 {
+    public int Order => 300;
+
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         var adminOptions = options.Value;
@@ -27,24 +32,43 @@ public sealed class AdminSeeder(
         }
 
         cancellationToken.ThrowIfCancellationRequested();
-        if (await userManager.FindByEmailAsync(adminOptions.Email) is not null)
+        var existingUser = await userManager.FindByEmailAsync(adminOptions.Email);
+        if (existingUser is not null)
         {
+            if (await userManager.IsInRoleAsync(existingUser, AccountRoleNames.Admin))
+            {
+                return;
+            }
+
+            var existingUserRoleResult = await userManager.AddToRoleAsync(existingUser, AccountRoleNames.Admin);
+            if (!existingUserRoleResult.Succeeded)
+            {
+                var errors = string.Join(", ", existingUserRoleResult.Errors.Select(error => error.Code));
+                throw new InvalidOperationException($"Could not assign admin role: {errors}");
+            }
+
             return;
         }
 
-        var adminRole = await roleManager.FindByNameAsync(RoleNames.Admin)
+        var adminRole = await roleManager.FindByNameAsync(AccountRoleNames.Admin)
             ?? throw new InvalidOperationException("Admin role must be seeded before the admin user.");
-        var adminResult = User.CreateAdmin(adminOptions.Email, adminRole);
-        if (adminResult.IsFailure)
-        {
-            throw new InvalidOperationException(adminResult.Error.Message);
-        }
 
-        var creationResult = await userManager.CreateAsync(adminResult.Value, adminOptions.Password);
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        var user = IdentityUserEntity.Create(adminOptions.Email);
+        var creationResult = await userManager.CreateAsync(user, adminOptions.Password);
         if (!creationResult.Succeeded)
         {
             var errors = string.Join(", ", creationResult.Errors.Select(error => error.Code));
             throw new InvalidOperationException($"Could not seed admin user: {errors}");
         }
+
+        var roleResult = await userManager.AddToRoleAsync(user, adminRole.Name!);
+        if (!roleResult.Succeeded)
+        {
+            var errors = string.Join(", ", roleResult.Errors.Select(error => error.Code));
+            throw new InvalidOperationException($"Could not assign admin role: {errors}");
+        }
+
+        await transaction.CommitAsync(cancellationToken);
     }
 }

@@ -1,5 +1,6 @@
-using Lash.Users.Domain;
 using Lash.Users.Infrastructure.DbContexts;
+using Lash.Users.Infrastructure.Identity;
+using Lash.Users.Domain;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 
@@ -12,8 +13,8 @@ public sealed class UsersDbContextTests
     {
         using var context = CreateContext();
 
-        var user = context.Model.FindEntityType(typeof(User))!;
-        var role = context.Model.FindEntityType(typeof(Role))!;
+        var user = context.Model.FindEntityType(typeof(IdentityUserEntity))!;
+        var role = context.Model.FindEntityType(typeof(IdentityRoleEntity))!;
         var userRole = context.Model.FindEntityType(typeof(IdentityUserRole<Guid>))!;
 
         Assert.NotNull(user);
@@ -22,8 +23,8 @@ public sealed class UsersDbContextTests
         Assert.Equal("users", user!.GetTableName());
         Assert.Equal("roles", role!.GetTableName());
         Assert.Equal("user_roles", userRole!.GetTableName());
-        Assert.NotNull(user.FindSkipNavigation(nameof(User.Roles)));
-        Assert.NotNull(role.FindSkipNavigation(nameof(Role.Users)));
+        Assert.NotNull(user.FindSkipNavigation(nameof(IdentityUserEntity.Roles)));
+        Assert.NotNull(role.FindSkipNavigation(nameof(IdentityRoleEntity.Users)));
     }
 
     [Fact]
@@ -31,17 +32,17 @@ public sealed class UsersDbContextTests
     {
         using var context = CreateContext();
 
-        var permission = context.Model.FindEntityType(typeof(Permission))!;
+        var permission = context.Model.FindEntityType(typeof(IdentityPermission))!;
         var refreshSession = context.Model.FindEntityType(typeof(RefreshSession))!;
         var identityEmailRequest = context.Model.FindEntityType(typeof(IdentityEmailRequest))!;
-        var rolePermission = context.Model.FindEntityType(typeof(RolePermission))!;
+        var rolePermission = context.Model.FindEntityType(typeof(IdentityRolePermission))!;
 
         Assert.NotNull(permission);
         Assert.NotNull(refreshSession);
         Assert.NotNull(rolePermission);
         Assert.Equal("permissions", permission!.GetTableName());
         Assert.Contains(permission.GetIndexes(), index =>
-            index.IsUnique && index.Properties.Single().Name == nameof(Permission.Code));
+            index.IsUnique && index.Properties.Single().Name == nameof(IdentityPermission.Code));
         Assert.Equal("refresh_sessions", refreshSession!.GetTableName());
         Assert.Contains(refreshSession.GetIndexes(), index =>
             index.IsUnique && index.Properties.Single().Name == nameof(RefreshSession.Jti));
@@ -51,7 +52,7 @@ public sealed class UsersDbContextTests
                 [nameof(IdentityEmailRequest.EmailHash), nameof(IdentityEmailRequest.Operation), nameof(IdentityEmailRequest.RequestedAt)]));
         Assert.Equal("role_permissions", rolePermission!.GetTableName());
         Assert.Equal(
-            [nameof(RolePermission.RoleId), nameof(RolePermission.PermissionId)],
+            [nameof(IdentityRolePermission.RoleId), nameof(IdentityRolePermission.PermissionId)],
             rolePermission.FindPrimaryKey()!.Properties.Select(property => property.Name));
     }
 

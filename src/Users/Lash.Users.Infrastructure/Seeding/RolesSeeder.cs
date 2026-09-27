@@ -1,15 +1,18 @@
-using Lash.Users.Domain;
+using Lash.Users.Application.Constants;
+using Lash.Users.Infrastructure.Identity;
 using Microsoft.AspNetCore.Identity;
 
 namespace Lash.Users.Infrastructure.Seeding;
 
-public sealed class RolesSeeder(RoleManager<Role> roleManager)
+public sealed class RolesSeeder(RoleManager<IdentityRoleEntity> roleManager) : ISeeder
 {
+    public int Order => 100;
+
     private static readonly string[] RoleNamesToSeed =
     [
-        RoleNames.Client,
-        RoleNames.Master,
-        RoleNames.Admin
+        AccountRoleNames.Client,
+        AccountRoleNames.Master,
+        AccountRoleNames.Admin
     ];
 
     public async Task SeedAsync(CancellationToken cancellationToken = default)
@@ -23,7 +26,7 @@ public sealed class RolesSeeder(RoleManager<Role> roleManager)
                 continue;
             }
 
-            var role = Role.Create(roleName).Value;
+            var role = IdentityRoleEntity.Create(roleName);
             var result = await roleManager.CreateAsync(role);
 
             if (!result.Succeeded)

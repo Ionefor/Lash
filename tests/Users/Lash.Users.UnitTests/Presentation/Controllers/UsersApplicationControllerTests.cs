@@ -1,5 +1,5 @@
 using System.Security.Claims;
-using Lash.Users.Application.Models;
+using Lash.Users.Application.Constants;
 using Lash.Users.Presentation.Controllers;
 using Microsoft.AspNetCore.Http;
 using Microsoft.AspNetCore.Mvc;
@@ -34,7 +34,7 @@ public sealed class UsersApplicationControllerTests
 
     private static TestUsersApplicationController CreateController(string? subject)
     {
-        var claims = subject is null ? [] : new[] { new Claim(AccessTokenClaimTypes.Subject, subject) };
+        var claims = subject is null ? [] : new[] { new Claim(AccessTokenClaimTypes.Sub, subject) };
         var context = new DefaultHttpContext { User = new ClaimsPrincipal(new ClaimsIdentity(claims)) };
         return new TestUsersApplicationController { ControllerContext = new ControllerContext { HttpContext = context } };
     }

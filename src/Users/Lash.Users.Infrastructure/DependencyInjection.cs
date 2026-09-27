@@ -1,8 +1,10 @@
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Domain;
 using Lash.Users.Infrastructure.Authorization;
 using Lash.Users.Infrastructure.DbContexts;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.Options;
+using Lash.Users.Infrastructure.Messaging;
+using MassTransit;
 using Lash.Users.Infrastructure.Persistence;
 using Lash.Users.Infrastructure.Providers;
 using Lash.Users.Infrastructure.Seeding;
@@ -29,7 +31,7 @@ public static class DependencyInjection
             .UseNpgsql(connectionString)
             .UseSnakeCaseNamingConvention());
 
-        services.AddIdentityCore<User>(options =>
+        services.AddIdentityCore<IdentityUserEntity>(options =>
             {
                 options.User.RequireUniqueEmail = true;
                 options.SignIn.RequireConfirmedEmail = true;
@@ -37,19 +39,24 @@ public static class DependencyInjection
                 options.Lockout.MaxFailedAccessAttempts = 5;
                 options.Lockout.DefaultLockoutTimeSpan = TimeSpan.FromMinutes(15);
             })
-            .AddRoles<Role>()
+            .AddRoles<IdentityRoleEntity>()
             .AddEntityFrameworkStores<UsersDbContext>()
             .AddDefaultTokenProviders();
 
         services.AddScoped<RolesSeeder>();
         services.AddScoped<PermissionsSeeder>();
         services.AddScoped<AdminSeeder>();
+        services.AddScoped<ISeeder>(provider => provider.GetRequiredService<RolesSeeder>());
+        services.AddScoped<ISeeder>(provider => provider.GetRequiredService<PermissionsSeeder>());
+        services.AddScoped<ISeeder>(provider => provider.GetRequiredService<AdminSeeder>());
+        services.AddScoped<DatabaseSeeder>();
         services.AddScoped<PermissionManager>();
         services.AddScoped<RolePermissionManager>();
         services.AddScoped<IPermissionManager>(provider => provider.GetRequiredService<PermissionManager>());
         services.AddScoped<IRefreshSessionManager, RefreshSessionManager>();
+        services.AddScoped<IUserAccountService, UserAccountService>();
         services.AddScoped<ITokenProvider, JwtTokenProvider>();
-        services.AddScoped<IEmailConfirmationSender, EmailConfirmationSender>();
+        services.AddScoped<IEmailConfirmationEmailSender, EmailConfirmationSender>();
         services.AddScoped<IPasswordResetSender, PasswordResetSender>();
         services.AddScoped<IIdentityEmailRequestLimiter, IdentityEmailRequestLimiter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
@@ -63,11 +70,62 @@ public static class DependencyInjection
             .Validate(options => options.RefreshTokenLifetimeDays > 0, "Jwt:RefreshTokenLifetimeDays must be positive.")
             .ValidateOnStart();
 
+        var databaseInitializationOptions = configuration
+            .GetSection(DatabaseInitializationOptions.SectionName)
+            .Get<DatabaseInitializationOptions>()
+            ?? new DatabaseInitializationOptions();
+
         services.AddOptions<RolePermissionOptions>()
-            .Bind(configuration.GetSection(RolePermissionOptions.SectionName));
+            .Bind(configuration.GetSection(RolePermissionOptions.SectionName))
+            .ValidateForSeed(databaseInitializationOptions.ApplySeedOnStartup);
         services.AddOptions<AdminOptions>()
-            .Bind(configuration.GetSection(AdminOptions.SectionName));
+            .Bind(configuration.GetSection(AdminOptions.SectionName))
+            .ValidateForSeed(databaseInitializationOptions.ApplySeedOnStartup);
+        services.AddOptions<DatabaseInitializationOptions>()
+            .Bind(configuration.GetSection(DatabaseInitializationOptions.SectionName));
         services.AddOptions<EmailOptions>().Bind(configuration.GetSection(EmailOptions.SectionName)).Validate(options => !string.IsNullOrWhiteSpace(options.Host) && !string.IsNullOrWhiteSpace(options.FromAddress), "Email SMTP settings are required.").ValidateOnStart();
+
+        var rabbitMqOptions = configuration.GetSection(RabbitMqOptions.SectionName).Get<RabbitMqOptions>()
+            ?? new RabbitMqOptions();
+        services.AddOptions<RabbitMqOptions>()
+            .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
+            .Validate(options => !options.Enabled || !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required when RabbitMq is enabled.")
+            .ValidateOnStart();
+
+        if (rabbitMqOptions.Enabled)
+        {
+            services.AddMassTransit(configurator =>
+            {
+                configurator.AddConsumer<EmailConfirmationRequestedConsumer>();
+                configurator.AddEntityFrameworkOutbox<UsersDbContext>(outbox =>
+                {
+                    outbox.UsePostgres();
+                    outbox.UseBusOutbox();
+                });
+                configurator.UsingRabbitMq((_, bus) =>
+                {
+                    bus.Host(rabbitMqOptions.Host, rabbitMqOptions.VirtualHost, host =>
+                    {
+                        host.Username(rabbitMqOptions.UserName);
+                        host.Password(rabbitMqOptions.Password);
+                    });
+                    bus.ReceiveEndpoint("users-email-confirmation", endpoint =>
+                    {
+                        endpoint.ConfigureConsumer<EmailConfirmationRequestedConsumer>(_);
+                        endpoint.UseEntityFrameworkOutbox<UsersDbContext>(_);
+                        endpoint.UseMessageRetry(retry => retry.Intervals(
+                            TimeSpan.FromSeconds(1),
+                            TimeSpan.FromSeconds(5),
+                            TimeSpan.FromSeconds(30)));
+                    });
+                });
+            });
+            services.AddScoped<IUsersEventPublisher, MassTransitUsersRegistrationEventPublisher>();
+        }
+        else
+        {
+            services.AddScoped<IUsersEventPublisher, DisabledUserRegistrationEventPublisher>();
+        }
 
         var jwtOptions = configuration.GetSection(JwtOptions.SectionName).Get<JwtOptions>()
             ?? new JwtOptions();

@@ -20,12 +20,12 @@ public sealed class RegisterClientCommandValidatorTests
     }
 
     [Theory]
-    [InlineData("password1!", "password.uppercase_required")]
-    [InlineData("PASSWORD1!", "password.lowercase_required")]
-    [InlineData("Password!", "password.digit_required")]
-    [InlineData("Password1", "password.special_character_required")]
-    [InlineData("Pass1!", "password.min_length")]
-    [InlineData("Пароль1!", "password.ascii_only")]
+    [InlineData("password1!", "users.password.uppercase_required")]
+    [InlineData("PASSWORD1!", "users.password.lowercase_required")]
+    [InlineData("Password!", "users.password.digit_required")]
+    [InlineData("Password1", "users.password.special_character_required")]
+    [InlineData("Pass1!", "users.password.min_length")]
+    [InlineData("Пароль1!", "users.password.ascii_only")]
     public void Validate_WhenPasswordViolatesRule_ReturnsExpectedErrorCode(
         string password,
         string expectedErrorCode)
@@ -52,6 +52,20 @@ public sealed class RegisterClientCommandValidatorTests
         var result = _validator.Validate(command);
 
         Assert.Contains(result.Errors, error =>
-            error.ErrorCode == "password.confirmation_mismatch");
+            error.ErrorCode == "users.password.confirmation_mismatch");
+    }
+
+    [Fact]
+    public void Validate_WhenPasswordIsNull_ReturnsRequiredError()
+    {
+        var command = new RegisterClientCommand(
+            "client@example.com",
+            null!,
+            "Password1!");
+
+        var result = _validator.Validate(command);
+
+        Assert.False(result.IsValid);
+        Assert.Contains(result.Errors, error => error.ErrorCode == "users.password.required");
     }
 }

@@ -21,7 +21,6 @@ public sealed class RefreshSessionManager(UsersDbContext dbContext) : IRefreshSe
 
         var tokenHash = RefreshTokenHasher.Hash(refreshToken);
         var session = await dbContext.RefreshSessions
-            .Include(item => item.User)
             .SingleOrDefaultAsync(item => item.TokenHash == tokenHash, cancellationToken);
 
         if (session is null)
@@ -37,4 +36,21 @@ public sealed class RefreshSessionManager(UsersDbContext dbContext) : IRefreshSe
 
     public void Delete(RefreshSession refreshSession) =>
         dbContext.RefreshSessions.Remove(refreshSession);
+
+    public async Task<bool> TryRevokeAsync(
+        Guid sessionId,
+        DateTimeOffset revokedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var updated = await dbContext.RefreshSessions
+            .Where(session =>
+                session.Id == sessionId &&
+                session.RevokedAt == null &&
+                session.ExpiresAt > revokedAt)
+            .ExecuteUpdateAsync(
+                setters => setters.SetProperty(session => session.RevokedAt, revokedAt),
+                cancellationToken);
+
+        return updated == 1;
+    }
 }

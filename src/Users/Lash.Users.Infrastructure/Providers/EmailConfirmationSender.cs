@@ -4,7 +4,7 @@ using CSharpFunctionalExtensions;
 using ErrorsFlow.Errors;
 using ErrorsFlow.Models;
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.Options;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Options;
@@ -12,13 +12,20 @@ using Microsoft.Extensions.Logging;
 
 namespace Lash.Users.Infrastructure.Providers;
 
-public sealed class EmailConfirmationSender(
-    UserManager<User> userManager,
-    IOptions<EmailOptions> options,
-    ILogger<EmailConfirmationSender> logger) : IEmailConfirmationSender, IPasswordResetSender
+public interface IEmailConfirmationEmailSender
 {
-    public async Task<UnitResult<Error>> SendAsync(User user, CancellationToken cancellationToken = default)
+    Task<UnitResult<Error>> SendAsync(Guid userId, CancellationToken cancellationToken = default);
+}
+
+public sealed class EmailConfirmationSender(
+    UserManager<IdentityUserEntity> userManager,
+    IOptions<EmailOptions> options,
+    ILogger<EmailConfirmationSender> logger) : IEmailConfirmationEmailSender
+{
+    public async Task<UnitResult<Error>> SendAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null || user.EmailConfirmed) return UnitResult.Success<Error>();
         var email = user.Email;
         if (string.IsNullOrWhiteSpace(email)) return UnitResult.Failure(GeneralErrors.ValueIsRequired(nameof(user.Email)));
         var code = await userManager.GenerateEmailConfirmationTokenAsync(user);
@@ -27,23 +34,26 @@ public sealed class EmailConfirmationSender(
             using var client = new SmtpClient(options.Value.Host, options.Value.Port) { EnableSsl = options.Value.UseSsl, Credentials = new NetworkCredential(options.Value.UserName, options.Value.Password) };
             using var message = new MailMessage(options.Value.FromAddress, email, "Код подтверждения Lash", $"Ваш код подтверждения: {code}");
             await client.SendMailAsync(message, cancellationToken);
+            logger.LogInformation("Email confirmation sent for user {UserId}.", userId);
             return UnitResult.Success<Error>();
         }
-        catch (SmtpException)
+        catch (SmtpException exception)
         {
-            logger.LogWarning("Unable to send email confirmation.");
+            logger.LogWarning(exception, "Unable to send email confirmation for user {UserId}.", userId);
             return UnitResult.Failure(GeneralErrors.Failed("Unable to send confirmation email."));
         }
     }
 }
 
 public sealed class PasswordResetSender(
-    UserManager<User> userManager,
+    UserManager<IdentityUserEntity> userManager,
     IOptions<EmailOptions> options,
     ILogger<PasswordResetSender> logger) : IPasswordResetSender
 {
-    public async Task<UnitResult<Error>> SendAsync(User user, CancellationToken cancellationToken = default)
+    public async Task<UnitResult<Error>> SendAsync(Guid userId, CancellationToken cancellationToken = default)
     {
+        var user = await userManager.FindByIdAsync(userId.ToString());
+        if (user is null) return UnitResult.Success<Error>();
         var email = user.Email;
         if (string.IsNullOrWhiteSpace(email))
             return UnitResult.Failure(GeneralErrors.ValueIsRequired(nameof(user.Email)));
@@ -58,11 +68,12 @@ public sealed class PasswordResetSender(
             };
             using var message = new MailMessage(options.Value.FromAddress, email, "Password reset Lash", $"Your password reset code: {code}");
             await client.SendMailAsync(message, cancellationToken);
+            logger.LogInformation("Password reset email sent for user {UserId}.", userId);
             return UnitResult.Success<Error>();
         }
-        catch (SmtpException)
+        catch (SmtpException exception)
         {
-            logger.LogWarning("Unable to send password reset email.");
+            logger.LogWarning(exception, "Unable to send password reset email for user {UserId}.", userId);
             return UnitResult.Failure(GeneralErrors.Failed("Unable to send password reset email."));
         }
     }

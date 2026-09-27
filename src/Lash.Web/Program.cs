@@ -1,11 +1,26 @@
 using Lash.Users.Application;
 using Lash.Users.Infrastructure;
+using Lash.Users.Infrastructure.Options;
 using Lash.Users.Presentation.Extensions;
 using Lash.Users.Presentation.RateLimiting;
 using Lash.Web.ExceptionHandling;
 using Lash.Web.Http;
 using Microsoft.AspNetCore.RateLimiting;
+using Microsoft.Extensions.Options;
 using System.Threading.RateLimiting;
+using DotNetEnv;
+
+var currentDirectory = Directory.GetCurrentDirectory();
+var environmentFile = Path.Combine(currentDirectory, ".env");
+if (!File.Exists(environmentFile))
+{
+    environmentFile = Path.Combine(currentDirectory, "src", "Lash.Web", ".env");
+}
+
+if (File.Exists(environmentFile))
+{
+    Env.NoClobber().Load(environmentFile);
+}
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -83,9 +98,16 @@ app.UseStatusCodePages(async statusCodeContext =>
     }
 });
 
-if (app.Configuration.GetValue<bool>("DatabaseInitialization:ApplyMigrationsOnStartup"))
+var databaseInitialization = app.Services
+    .GetRequiredService<IOptions<DatabaseInitializationOptions>>().Value;
+if (databaseInitialization.ApplyMigrationsOnStartup)
 {
     await app.Services.MigrateUsersDatabaseAsync();
+}
+
+if (databaseInitialization.ApplySeedOnStartup)
+{
+    await app.Services.SeedUsersDatabaseAsync();
 }
 
 app.UseHttpsRedirection();

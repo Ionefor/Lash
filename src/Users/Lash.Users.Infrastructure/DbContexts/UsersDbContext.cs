@@ -1,4 +1,6 @@
 using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
+using MassTransit;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
@@ -6,10 +8,10 @@ using Microsoft.EntityFrameworkCore;
 namespace Lash.Users.Infrastructure.DbContexts;
 
 public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options)
-    : IdentityDbContext<User, Role, Guid>(options)
+    : IdentityDbContext<IdentityUserEntity, IdentityRoleEntity, Guid>(options)
 {
-    public DbSet<Permission> Permissions => Set<Permission>();
-    public DbSet<RolePermission> RolePermissions => Set<RolePermission>();
+    public DbSet<IdentityPermission> Permissions => Set<IdentityPermission>();
+    public DbSet<IdentityRolePermission> RolePermissions => Set<IdentityRolePermission>();
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
     public DbSet<IdentityEmailRequest> IdentityEmailRequests => Set<IdentityEmailRequest>();
 
@@ -22,6 +24,7 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options)
         builder.Entity<IdentityUserRole<Guid>>().ToTable("user_roles");
         builder.Entity<IdentityUserToken<Guid>>().ToTable("user_tokens");
         builder.Entity<IdentityRoleClaim<Guid>>().ToTable("role_claims");
+        builder.AddTransactionalOutboxEntities();
 
         builder.ApplyConfigurationsFromAssembly(typeof(UsersDbContext).Assembly);
     }

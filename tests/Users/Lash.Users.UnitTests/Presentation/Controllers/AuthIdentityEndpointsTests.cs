@@ -8,6 +8,7 @@ using Lash.Users.Application.Features.Commands.RequestPasswordReset;
 using Lash.Users.Application.Features.Commands.ResendEmailConfirmation;
 using Lash.Users.Application.Features.Commands.ResetPassword;
 using Lash.Users.Application.Features.Queries.GetCurrentUser;
+using Lash.Users.Application.Constants;
 using Lash.Users.Application.Models;
 using Lash.Users.Presentation.Controllers;
 using Lash.Users.Presentation.Requests;
@@ -151,7 +152,7 @@ public sealed class AuthIdentityEndpointsTests
     {
         var handler = new Mock<IQueryHandler<GetCurrentUserQuery, UserProfile>>();
         var controller = CreateController(null);
-        controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(AccessTokenClaimTypes.Subject, "invalid")]));
+        controller.ControllerContext.HttpContext.User = new ClaimsPrincipal(new ClaimsIdentity([new Claim(AccessTokenClaimTypes.Sub, "invalid")]));
 
         var result = await controller.GetCurrentUser(handler.Object, CancellationToken.None);
 
@@ -161,7 +162,7 @@ public sealed class AuthIdentityEndpointsTests
 
     private static AuthController CreateController(Guid? userId)
     {
-        var claims = userId is null ? [] : new[] { new Claim(AccessTokenClaimTypes.Subject, userId.Value.ToString()) };
+        var claims = userId is null ? [] : new[] { new Claim(AccessTokenClaimTypes.Sub, userId.Value.ToString()) };
         return new AuthController
         {
             ControllerContext = new ControllerContext

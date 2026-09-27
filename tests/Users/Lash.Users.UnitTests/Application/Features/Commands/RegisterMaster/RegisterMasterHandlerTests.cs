@@ -1,87 +1,41 @@
-using Lash.Users.Application.Features.Commands.RegisterMaster;
-using Lash.Users.Application.Abstractions;
-using Lash.Users.Domain;
 using CSharpFunctionalExtensions;
 using ErrorsFlow.Models;
-using Microsoft.AspNetCore.Identity;
-using Microsoft.Extensions.Logging.Abstractions;
-using Microsoft.Extensions.Options;
+using Lash.Users.Application.Abstractions;
+using Lash.Users.Application.Constants;
+using Lash.Users.Application.Features.Commands.RegisterMaster;
+using Lash.Users.Application.Models;
+using Lash.Users.Messaging.Events;
 using Moq;
+using WebFlow.Abstractions.Interfaces;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Lash.Users.UnitTests.Application.Features.Commands.RegisterMaster;
 
 public sealed class RegisterMasterHandlerTests
 {
     [Fact]
-    public async Task Handle_WhenCommandIsValid_CreatesUserWithMasterRole()
+    public async Task Handle_WhenRegistrationSucceeds_CreatesMasterAndStoresEventsInTransaction()
     {
-        var role = CreateRole(RoleNames.Master);
-        var userManager = CreateUserManager();
-        var roleManager = CreateRoleManager();
-        User? createdUser = null;
+        var userId = Guid.NewGuid();
+        var accounts = new Mock<IUserAccountService>();
+        accounts.Setup(item => item.RoleExistsAsync(AccountRoleNames.Master, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        accounts.Setup(item => item.CreateAsync("master@example.com", "Password1!", AccountRoleNames.Master, It.IsAny<CancellationToken>()))
+            .ReturnsAsync(Result.Success<UserAccount, Error>(new UserAccount(userId, "master@example.com", false)));
+        var publisher = new Mock<IUsersEventPublisher>();
+        publisher.Setup(item => item.PublishAsync(It.IsAny<MasterRegistered>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        publisher.Setup(item => item.PublishAsync(It.IsAny<EmailConfirmationRequested>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var transaction = new Mock<ITransaction>();
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>())).ReturnsAsync(transaction.Object);
+        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var handler = new RegisterMasterHandler(new RegisterMasterCommandValidator(), accounts.Object, publisher.Object, unitOfWork.Object, NullLogger<RegisterMasterHandler>.Instance);
 
-        roleManager.Setup(manager => manager.FindByNameAsync(RoleNames.Master))
-            .ReturnsAsync(role);
-        userManager.Setup(manager => manager.CreateAsync(It.IsAny<User>(), "Password1!"))
-            .Callback<User, string>((user, _) => createdUser = user)
-            .ReturnsAsync(IdentityResult.Success);
-
-        var handler = new RegisterMasterHandler(
-            new RegisterMasterCommandValidator(),
-            userManager.Object,
-            roleManager.Object,
-            CreateEmailConfirmationSender().Object);
-
-        var result = await handler.Handle(new RegisterMasterCommand(
-            "master@example.com",
-            "Password1!",
-            "Password1!"));
+        var result = await handler.Handle(new RegisterMasterCommand("master@example.com", "Password1!", "Password1!"));
 
         Assert.True(result.IsSuccess);
-        Assert.NotNull(createdUser);
-        Assert.Equal(createdUser.Id, result.Value);
-        Assert.Equal("master@example.com", createdUser.Email);
-        Assert.Equal("master@example.com", createdUser.UserName);
-        Assert.Contains(role, createdUser.Roles);
-    }
-
-    private static Mock<UserManager<User>> CreateUserManager()
-    {
-        return new Mock<UserManager<User>>(
-            new Mock<IUserStore<User>>().Object,
-            Options.Create(new IdentityOptions()),
-            new PasswordHasher<User>(),
-            Array.Empty<IUserValidator<User>>(),
-            Array.Empty<IPasswordValidator<User>>(),
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            null!,
-            NullLogger<UserManager<User>>.Instance);
-    }
-
-    private static Mock<RoleManager<Role>> CreateRoleManager()
-    {
-        return new Mock<RoleManager<Role>>(
-            new Mock<IRoleStore<Role>>().Object,
-            Array.Empty<IRoleValidator<Role>>(),
-            new UpperInvariantLookupNormalizer(),
-            new IdentityErrorDescriber(),
-            NullLogger<RoleManager<Role>>.Instance);
-    }
-
-    private static Mock<IEmailConfirmationSender> CreateEmailConfirmationSender()
-    {
-        var sender = new Mock<IEmailConfirmationSender>();
-        sender.Setup(item => item.SendAsync(It.IsAny<User>(), It.IsAny<CancellationToken>()))
-            .ReturnsAsync(UnitResult.Success<Error>());
-        return sender;
-    }
-
-    private static Role CreateRole(string name)
-    {
-        var result = Role.Create(name);
-
-        Assert.True(result.IsSuccess);
-        return result.Value;
+        Assert.Equal(userId, result.Value);
+        publisher.Verify(item => item.PublishAsync(It.Is<MasterRegistered>(message => message.UserId == userId), It.IsAny<CancellationToken>()), Times.Once);
+        publisher.Verify(item => item.PublishAsync(It.Is<EmailConfirmationRequested>(message => message.UserId == userId), It.IsAny<CancellationToken>()), Times.Once);
+        unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
     }
 }

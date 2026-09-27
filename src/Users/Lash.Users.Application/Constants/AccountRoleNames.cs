@@ -1,6 +1,6 @@
-namespace Lash.Users.Domain;
+namespace Lash.Users.Application.Constants;
 
-public static class RoleNames
+public static class AccountRoleNames
 {
     public const string Client = nameof(Client);
     public const string Master = nameof(Master);

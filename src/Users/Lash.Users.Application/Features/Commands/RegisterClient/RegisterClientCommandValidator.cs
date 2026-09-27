@@ -7,9 +7,7 @@ public sealed class RegisterClientCommandValidator : AbstractValidator<RegisterC
 {
     public RegisterClientCommandValidator()
     {
-        RuleFor(command => command.Email)
-            .NotEmpty()
-            .EmailAddress();
+        RuleFor(command => command.Email).MustBeValidEmail();
 
         RuleFor(command => command.Password)
             .MustBeStrongPassword();

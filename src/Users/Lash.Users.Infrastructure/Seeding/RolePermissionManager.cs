@@ -1,4 +1,4 @@
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.DbContexts;
 using Microsoft.EntityFrameworkCore;
 
@@ -36,7 +36,7 @@ public sealed class RolePermissionManager(UsersDbContext dbContext)
 
         var rolePermissions = permissions
             .Where(permission => !existingIds.Contains(permission.Id))
-            .Select(permission => RolePermission.Create(roleId, permission.Id).Value);
+            .Select(permission => IdentityRolePermission.Create(roleId, permission.Id));
 
         await dbContext.RolePermissions.AddRangeAsync(rolePermissions, cancellationToken);
     }

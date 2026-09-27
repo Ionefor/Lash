@@ -1,4 +1,4 @@
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 

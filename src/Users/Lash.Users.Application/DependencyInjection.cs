@@ -35,6 +35,10 @@ public static class DependencyInjection
         services.AddScoped<IValidator<LoginCommand>, LoginCommandValidator>();
         services.AddScoped<IValidator<ResetPasswordCommand>, ResetPasswordCommandValidator>();
         services.AddScoped<IValidator<ChangePasswordCommand>, ChangePasswordCommandValidator>();
+        services.AddScoped<IValidator<ConfirmEmailCommand>, ConfirmEmailCommandValidator>();
+        services.AddScoped<IValidator<ResendEmailConfirmationCommand>, ResendEmailConfirmationCommandValidator>();
+        services.AddScoped<IValidator<RequestPasswordResetCommand>, RequestPasswordResetCommandValidator>();
+        services.AddScoped<IValidator<GetCurrentUserQuery>, GetCurrentUserQueryValidator>();
 
         return services;
     }

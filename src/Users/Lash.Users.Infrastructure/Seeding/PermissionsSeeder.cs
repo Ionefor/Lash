@@ -1,4 +1,4 @@
-using Lash.Users.Domain;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.DbContexts;
 using Lash.Users.Infrastructure.Options;
 using Microsoft.AspNetCore.Identity;
@@ -8,11 +8,13 @@ namespace Lash.Users.Infrastructure.Seeding;
 
 public sealed class PermissionsSeeder(
     IOptions<RolePermissionOptions> options,
-    RoleManager<Role> roleManager,
+    RoleManager<IdentityRoleEntity> roleManager,
     PermissionManager permissionManager,
     RolePermissionManager rolePermissionManager,
-    UsersDbContext dbContext)
+    UsersDbContext dbContext) : ISeeder
 {
+    public int Order => 200;
+
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
         var seedOptions = options.Value;

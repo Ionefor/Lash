@@ -10,19 +10,18 @@ public sealed class RefreshSession
     {
     }
 
-    private RefreshSession(Guid userId, Guid jti, string tokenHash, DateTimeOffset expiresAt)
+    private RefreshSession(Guid userId, Guid jti, string tokenHash, DateTimeOffset createdAt, DateTimeOffset expiresAt)
     {
         Id = Guid.NewGuid();
         UserId = userId;
         Jti = jti;
         TokenHash = tokenHash;
+        CreatedAt = createdAt;
         ExpiresAt = expiresAt;
-        CreatedAt = DateTimeOffset.UtcNow;
     }
 
     public Guid Id { get; private set; }
     public Guid UserId { get; private set; }
-    public User User { get; private set; } = null!;
     public Guid Jti { get; private set; }
     public string TokenHash { get; private set; } = string.Empty;
     public DateTimeOffset ExpiresAt { get; private set; }
@@ -46,7 +45,12 @@ public sealed class RefreshSession
         return UnitResult.Success<Error>();
     }
 
-    public static Result<RefreshSession, Error> Create(Guid userId, Guid jti, string tokenHash, DateTimeOffset expiresAt)
+    public static Result<RefreshSession, Error> Create(
+        Guid userId,
+        Guid jti,
+        string tokenHash,
+        DateTimeOffset createdAt,
+        DateTimeOffset expiresAt)
     {
         if (userId == Guid.Empty)
         {
@@ -63,12 +67,12 @@ public sealed class RefreshSession
             return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsRequired(nameof(TokenHash)));
         }
 
-        if (expiresAt <= DateTimeOffset.UtcNow)
+        if (expiresAt <= createdAt)
         {
             return Result.Failure<RefreshSession, Error>(GeneralErrors.ValueIsInvalid(nameof(ExpiresAt)));
         }
 
-        return Result.Success<RefreshSession, Error>(new RefreshSession(userId, jti, tokenHash, expiresAt));
+        return Result.Success<RefreshSession, Error>(new RefreshSession(userId, jti, tokenHash, createdAt, expiresAt));
     }
 
     public UnitResult<Error> Revoke(DateTimeOffset revokedAt)
