@@ -58,16 +58,65 @@ public sealed class PermissionsSeederTests
     }
 
     [Fact]
-    public async Task AddMissingAsync_WhenPermissionIsUnknown_ThrowsWithoutAddingRolePermission()
+    public async Task SynchronizeAsync_WhenPermissionIsUnknown_ThrowsWithoutAddingRolePermission()
     {
         await using var context = CreateContext();
         var manager = new RolePermissionManager(context);
 
         var exception = await Assert.ThrowsAsync<InvalidOperationException>(() =>
-            manager.AddMissingAsync(Guid.NewGuid(), ["users.read"]));
+            manager.SynchronizeAsync(Guid.NewGuid(), ["users.read"]));
 
         Assert.Equal("Permissions must be seeded before roles: users.read.", exception.Message);
         Assert.Empty(context.RolePermissions);
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_WhenRoleHasPermissionRemovedFromConfiguration_RevokesOnlyThatPermission()
+    {
+        await using var context = CreateContext();
+        var role = IdentityRoleEntity.Create(AccountRoleNames.Client);
+        var readPermission = IdentityPermission.Create("users.read");
+        var managePermission = IdentityPermission.Create("users.manage");
+        context.AddRange(role, readPermission, managePermission);
+        await context.SaveChangesAsync();
+        context.RolePermissions.AddRange(
+            IdentityRolePermission.Create(role.Id, readPermission.Id),
+            IdentityRolePermission.Create(role.Id, managePermission.Id));
+        await context.SaveChangesAsync();
+        var manager = new RolePermissionManager(context);
+
+        await manager.SynchronizeAsync(role.Id, ["users.read"]);
+        await context.SaveChangesAsync();
+
+        var assignedCodes = await context.RolePermissions
+            .Where(item => item.RoleId == role.Id)
+            .Join(
+                context.Permissions,
+                rolePermission => rolePermission.PermissionId,
+                permission => permission.Id,
+                (_, permission) => permission.Code)
+            .ToArrayAsync();
+
+        Assert.Equal(["users.read"], assignedCodes);
+        Assert.NotNull(await context.Permissions.SingleOrDefaultAsync(permission => permission.Id == managePermission.Id));
+    }
+
+    [Fact]
+    public async Task SynchronizeAsync_WhenRoleHasNoConfiguredPermissions_RemovesAllRolePermissions()
+    {
+        await using var context = CreateContext();
+        var role = IdentityRoleEntity.Create(AccountRoleNames.Client);
+        var permission = IdentityPermission.Create("users.read");
+        context.AddRange(role, permission);
+        await context.SaveChangesAsync();
+        context.RolePermissions.Add(IdentityRolePermission.Create(role.Id, permission.Id));
+        await context.SaveChangesAsync();
+        var manager = new RolePermissionManager(context);
+
+        await manager.SynchronizeAsync(role.Id, []);
+        await context.SaveChangesAsync();
+
+        Assert.Empty(await context.RolePermissions.Where(item => item.RoleId == role.Id).ToArrayAsync());
     }
 
     private static UsersDbContext CreateContext() => new(

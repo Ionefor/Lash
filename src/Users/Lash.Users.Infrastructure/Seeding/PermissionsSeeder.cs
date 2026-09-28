@@ -34,7 +34,7 @@ public sealed class PermissionsSeeder(
                 ?? throw new InvalidOperationException(
                     $"Role '{roleName}' must be seeded before its permissions.");
 
-            await rolePermissionManager.AddMissingAsync(
+            await rolePermissionManager.SynchronizeAsync(
                 role.Id,
                 rolePermissionCodes,
                 cancellationToken);
