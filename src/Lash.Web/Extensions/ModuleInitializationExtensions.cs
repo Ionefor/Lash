@@ -1,4 +1,4 @@
-using Lash.Users.Infrastructure;
+using Lash.Users.Infrastructure.Extensions;
 using Lash.Users.Infrastructure.Options;
 using Microsoft.Extensions.Options;
 

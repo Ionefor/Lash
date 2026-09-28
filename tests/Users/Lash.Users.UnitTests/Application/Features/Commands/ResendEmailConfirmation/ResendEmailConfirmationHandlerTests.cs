@@ -17,7 +17,7 @@ public sealed class ResendEmailConfirmationHandlerTests
         var publisher = new Mock<IUsersEventPublisher>();
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.EmailConfirmation, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var unitOfWork = CreateUnitOfWork();
         var handler = new ResendEmailConfirmationHandler(
             new ResendEmailConfirmationCommandValidator(),
             accounts.Object,
@@ -45,8 +45,7 @@ public sealed class ResendEmailConfirmationHandlerTests
         publisher.Setup(item => item.PublishAsync(It.IsAny<EmailConfirmationRequested>(), It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.EmailConfirmation, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var unitOfWork = CreateUnitOfWork();
         var handler = new ResendEmailConfirmationHandler(
             new ResendEmailConfirmationCommandValidator(),
             accounts.Object,
@@ -60,5 +59,16 @@ public sealed class ResendEmailConfirmationHandlerTests
         Assert.True(result.IsSuccess);
         publisher.Verify(item => item.PublishAsync(It.Is<EmailConfirmationRequested>(message => message.UserId == userId), It.IsAny<CancellationToken>()), Times.Once);
         unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static Mock<IUnitOfWork> CreateUnitOfWork()
+    {
+        var transaction = new Mock<ITransaction>();
+        transaction.Setup(item => item.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction.Object);
+        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        return unitOfWork;
     }
 }

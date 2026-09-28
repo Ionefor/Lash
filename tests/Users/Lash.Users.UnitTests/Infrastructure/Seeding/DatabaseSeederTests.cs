@@ -10,16 +10,22 @@ public sealed class DatabaseSeederTests
     {
         var executionOrder = new List<int>();
         var seeder = new DatabaseSeeder(
+        new TestSeederRegistry(
         [
             new TestSeeder(300, executionOrder),
             new TestSeeder(100, executionOrder),
             new TestSeeder(200, executionOrder)
-        ],
+        ]),
         NullLogger<DatabaseSeeder>.Instance);
 
         await seeder.SeedAsync();
 
         Assert.Equal([100, 200, 300], executionOrder);
+    }
+
+    private sealed class TestSeederRegistry(IReadOnlyCollection<ISeeder> all) : ISeederRegistry
+    {
+        public IReadOnlyCollection<ISeeder> All => all;
     }
 
     private sealed class TestSeeder(int order, ICollection<int> executionOrder) : ISeeder

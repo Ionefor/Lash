@@ -11,6 +11,9 @@ public sealed class UserConfiguration : IEntityTypeConfiguration<IdentityUserEnt
     {
         builder.ToTable("users");
 
+        builder.HasIndex(user => user.NormalizedEmail)
+            .IsUnique();
+
         builder.HasMany(user => user.Roles)
             .WithMany(role => role.Users)
             .UsingEntity<IdentityUserRole<Guid>>();

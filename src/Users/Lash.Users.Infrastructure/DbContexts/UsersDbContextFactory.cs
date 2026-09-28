@@ -7,14 +7,16 @@ public sealed class UsersDbContextFactory : IDesignTimeDbContextFactory<UsersDbC
 {
     public UsersDbContext CreateDbContext(string[] args)
     {
-        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__UsersDatabase")
-            ?? "Host=localhost;Database=lash_users;Username=postgres";
+        var connectionString = Environment.GetEnvironmentVariable("ConnectionStrings__UsersDatabase");
+        if (string.IsNullOrWhiteSpace(connectionString))
+        {
+            throw new InvalidOperationException(
+                "ConnectionStrings__UsersDatabase must be configured to run EF Core tooling.");
+        }
 
-        var options = new DbContextOptionsBuilder<UsersDbContext>()
-            .UseNpgsql(connectionString)
-            .UseSnakeCaseNamingConvention()
-            .Options;
+        var optionsBuilder = new DbContextOptionsBuilder<UsersDbContext>();
+        UsersDbContextOptions.Configure(optionsBuilder, connectionString);
 
-        return new UsersDbContext(options);
+        return new UsersDbContext(optionsBuilder.Options);
     }
 }

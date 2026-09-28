@@ -35,7 +35,7 @@ public sealed class RequestPasswordResetHandlerTests
         var publisher = new Mock<IUsersEventPublisher>();
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(false);
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var unitOfWork = CreateUnitOfWork();
         var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
@@ -55,8 +55,7 @@ public sealed class RequestPasswordResetHandlerTests
         var publisher = new Mock<IUsersEventPublisher>();
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var unitOfWork = new Mock<IUnitOfWork>();
-        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var unitOfWork = CreateUnitOfWork();
         var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("user@example.com"));
@@ -73,7 +72,7 @@ public sealed class RequestPasswordResetHandlerTests
         var publisher = new Mock<IUsersEventPublisher>();
         var limiter = new Mock<IIdentityEmailRequestLimiter>();
         limiter.Setup(item => item.TryAcquireAsync("unknown@example.com", IdentityEmailOperation.PasswordReset, It.IsAny<CancellationToken>())).ReturnsAsync(true);
-        var unitOfWork = new Mock<IUnitOfWork>();
+        var unitOfWork = CreateUnitOfWork();
         var handler = new RequestPasswordResetHandler(new RequestPasswordResetCommandValidator(), accounts.Object, publisher.Object, limiter.Object, unitOfWork.Object, NullLogger<RequestPasswordResetHandler>.Instance, TimeProvider.System);
 
         var result = await handler.Handle(new RequestPasswordResetCommand("unknown@example.com"));
@@ -81,5 +80,16 @@ public sealed class RequestPasswordResetHandlerTests
         Assert.True(result.IsSuccess);
         publisher.Verify(item => item.PublishAsync(It.IsAny<PasswordResetRequested>(), It.IsAny<CancellationToken>()), Times.Never);
         unitOfWork.Verify(item => item.SaveChangesAsync(It.IsAny<CancellationToken>()), Times.Once);
+    }
+
+    private static Mock<IUnitOfWork> CreateUnitOfWork()
+    {
+        var transaction = new Mock<ITransaction>();
+        transaction.Setup(item => item.CommitAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        var unitOfWork = new Mock<IUnitOfWork>();
+        unitOfWork.Setup(item => item.BeginTransactionAsync(It.IsAny<CancellationToken>()))
+            .ReturnsAsync(transaction.Object);
+        unitOfWork.Setup(item => item.SaveChangesAsync(It.IsAny<CancellationToken>())).Returns(Task.CompletedTask);
+        return unitOfWork;
     }
 }

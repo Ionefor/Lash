@@ -4,7 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 
-namespace Lash.Users.Infrastructure;
+namespace Lash.Users.Infrastructure.Extensions;
 
 public static class DatabaseInitializationExtensions
 {

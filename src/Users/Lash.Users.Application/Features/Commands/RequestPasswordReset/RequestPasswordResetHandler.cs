@@ -29,9 +29,11 @@ public sealed class RequestPasswordResetHandler(
             return validation.ToErrorList();
         }
 
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
         if (!await limiter.TryAcquireAsync(command.Email, IdentityEmailOperation.PasswordReset, cancellationToken))
         {
             logger.LogWarning("Password reset request was rate limited.");
+            await transaction.CommitAsync(cancellationToken);
             return UnitResult.Success<ErrorList>();
         }
 
@@ -46,6 +48,7 @@ public sealed class RequestPasswordResetHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return UnitResult.Success<ErrorList>();
     }
 }

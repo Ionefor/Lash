@@ -68,4 +68,49 @@ public sealed class RegisterClientCommandValidatorTests
         Assert.False(result.IsValid);
         Assert.Contains(result.Errors, error => error.ErrorCode == "users.password.required");
     }
+
+    [Fact]
+    public void Validate_WhenPasswordIsEmpty_ReturnsOnlyRequiredError()
+    {
+        var command = new RegisterClientCommand(
+            "client@example.com",
+            string.Empty,
+            "Password1!");
+
+        var result = _validator.Validate(command);
+
+        var passwordErrors = result.Errors.Where(error => error.PropertyName == "Password").ToArray();
+        var error = Assert.Single(passwordErrors);
+        Assert.Equal("users.password.required", error.ErrorCode);
+    }
+
+    [Fact]
+    public void Validate_WhenPasswordConfirmationIsEmpty_ReturnsOnlyRequiredError()
+    {
+        var command = new RegisterClientCommand(
+            "client@example.com",
+            "Password1!",
+            string.Empty);
+
+        var result = _validator.Validate(command);
+
+        var confirmationErrors = result.Errors.Where(error => error.PropertyName == "ConfirmPassword").ToArray();
+        var error = Assert.Single(confirmationErrors);
+        Assert.Equal("users.password.confirmation_required", error.ErrorCode);
+    }
+
+    [Fact]
+    public void Validate_WhenEmailIsEmpty_ReturnsOnlyRequiredError()
+    {
+        var command = new RegisterClientCommand(
+            string.Empty,
+            "Password1!",
+            "Password1!");
+
+        var result = _validator.Validate(command);
+
+        var emailErrors = result.Errors.Where(error => error.PropertyName == "Email").ToArray();
+        var error = Assert.Single(emailErrors);
+        Assert.Equal("users.email.required", error.ErrorCode);
+    }
 }

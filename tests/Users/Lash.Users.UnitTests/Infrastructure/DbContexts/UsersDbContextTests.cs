@@ -20,8 +20,13 @@ public sealed class UsersDbContextTests
         Assert.NotNull(user);
         Assert.NotNull(role);
         Assert.NotNull(userRole);
+        Assert.Equal(UsersDbContext.SchemaName, user!.GetSchema());
         Assert.Equal("users", user!.GetTableName());
+        Assert.Contains(user.GetIndexes(), index =>
+            index.IsUnique && index.Properties.Single().Name == nameof(IdentityUserEntity.NormalizedEmail));
+        Assert.Equal(UsersDbContext.SchemaName, role!.GetSchema());
         Assert.Equal("roles", role!.GetTableName());
+        Assert.Equal(UsersDbContext.SchemaName, userRole!.GetSchema());
         Assert.Equal("user_roles", userRole!.GetTableName());
         Assert.NotNull(user.FindSkipNavigation(nameof(IdentityUserEntity.Roles)));
         Assert.NotNull(role.FindSkipNavigation(nameof(IdentityRoleEntity.Users)));
@@ -40,16 +45,20 @@ public sealed class UsersDbContextTests
         Assert.NotNull(permission);
         Assert.NotNull(refreshSession);
         Assert.NotNull(rolePermission);
+        Assert.Equal(UsersDbContext.SchemaName, permission!.GetSchema());
         Assert.Equal("permissions", permission!.GetTableName());
         Assert.Contains(permission.GetIndexes(), index =>
             index.IsUnique && index.Properties.Single().Name == nameof(IdentityPermission.Code));
+        Assert.Equal(UsersDbContext.SchemaName, refreshSession!.GetSchema());
         Assert.Equal("refresh_sessions", refreshSession!.GetTableName());
         Assert.Contains(refreshSession.GetIndexes(), index =>
             index.IsUnique && index.Properties.Single().Name == nameof(RefreshSession.Jti));
+        Assert.Equal(UsersDbContext.SchemaName, identityEmailRequest!.GetSchema());
         Assert.Equal("identity_email_requests", identityEmailRequest!.GetTableName());
         Assert.Contains(identityEmailRequest.GetIndexes(), index =>
             index.Properties.Select(property => property.Name).SequenceEqual(
                 [nameof(IdentityEmailRequest.EmailHash), nameof(IdentityEmailRequest.Operation), nameof(IdentityEmailRequest.RequestedAt)]));
+        Assert.Equal(UsersDbContext.SchemaName, rolePermission!.GetSchema());
         Assert.Equal("role_permissions", rolePermission!.GetTableName());
         Assert.Equal(
             [nameof(IdentityRolePermission.RoleId), nameof(IdentityRolePermission.PermissionId)],

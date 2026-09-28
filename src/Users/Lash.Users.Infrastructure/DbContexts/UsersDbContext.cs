@@ -10,6 +10,8 @@ namespace Lash.Users.Infrastructure.DbContexts;
 public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options)
     : IdentityDbContext<IdentityUserEntity, IdentityRoleEntity, Guid>(options)
 {
+    public const string SchemaName = "users";
+
     public DbSet<IdentityPermission> Permissions => Set<IdentityPermission>();
     public DbSet<IdentityRolePermission> RolePermissions => Set<IdentityRolePermission>();
     public DbSet<RefreshSession> RefreshSessions => Set<RefreshSession>();
@@ -17,6 +19,7 @@ public sealed class UsersDbContext(DbContextOptions<UsersDbContext> options)
 
     protected override void OnModelCreating(ModelBuilder builder)
     {
+        builder.HasDefaultSchema(SchemaName);
         base.OnModelCreating(builder);
 
         builder.Entity<IdentityUserClaim<Guid>>().ToTable("user_claims");
