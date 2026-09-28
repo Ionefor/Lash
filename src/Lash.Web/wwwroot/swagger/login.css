@@ -1,0 +1,54 @@
+.lash-swagger-login-button {
+    margin-left: auto;
+    padding: 8px 14px;
+    border: 1px solid #fff;
+    border-radius: 4px;
+    background: transparent;
+    color: #fff;
+    cursor: pointer;
+    font-weight: 600;
+}
+
+.lash-swagger-login-dialog {
+    width: min(360px, calc(100vw - 32px));
+    border: 0;
+    border-radius: 8px;
+    padding: 24px;
+    box-shadow: 0 12px 32px #0004;
+}
+
+.lash-swagger-login-dialog::backdrop {
+    background: #0008;
+}
+
+.lash-swagger-login-form,
+.lash-swagger-login-form label {
+    display: grid;
+    gap: 8px;
+}
+
+.lash-swagger-login-form {
+    gap: 16px;
+}
+
+.lash-swagger-login-form h2 {
+    margin: 0;
+}
+
+.lash-swagger-login-form input {
+    box-sizing: border-box;
+    width: 100%;
+    padding: 8px;
+}
+
+.lash-swagger-login-error {
+    min-height: 1em;
+    margin: 0;
+    color: #b42318;
+}
+
+.lash-swagger-login-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}

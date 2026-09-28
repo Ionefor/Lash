@@ -14,6 +14,11 @@ internal static class UsersMessagingServiceCollectionExtensions
     {
         services.AddMassTransit(configurator =>
         {
+            configurator.ConfigureHealthCheckOptions(options =>
+            {
+                options.Name = "users-messaging";
+                options.Tags.Add("ready");
+            });
             configurator.AddConsumer<EmailConfirmationRequestedConsumer>();
             configurator.AddConsumer<PasswordResetRequestedConsumer>();
             configurator.AddEntityFrameworkOutbox<UsersDbContext>(outbox =>

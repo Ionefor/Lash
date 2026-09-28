@@ -9,6 +9,18 @@ public static class WebApplicationExtensions
 {
     public static WebApplication UseLashWeb(this WebApplication app)
     {
+        if (app.Environment.IsDevelopment() || app.Environment.IsEnvironment("Testing"))
+        {
+            app.UseStaticFiles();
+            app.UseSwagger();
+            app.UseSwaggerUI(options =>
+            {
+                options.SwaggerEndpoint("/swagger/v1/swagger.json", "Lash API v1");
+                options.InjectJavascript("/swagger/login.js");
+                options.InjectStylesheet("/swagger/login.css");
+            });
+        }
+
         app.UseSerilogRequestLogging(options =>
         {
             options.GetLevel = (httpContext, _, exception) =>

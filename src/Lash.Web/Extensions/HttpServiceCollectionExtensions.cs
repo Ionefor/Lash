@@ -4,6 +4,7 @@ using ErrorsFlow.Errors;
 using ErrorsFlow.Models;
 using Lash.Web.Authorization;
 using Lash.Web.Http;
+using Lash.Web.Swagger;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Authorization.Policy;
@@ -12,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.ModelBinding;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
+using Microsoft.OpenApi;
 using WebFlow.AspNetCore.Models;
 
 namespace Lash.Web.Extensions;
@@ -26,7 +28,27 @@ public static class HttpServiceCollectionExtensions
         {
             options.ApiVersionReader = new UrlSegmentApiVersionReader();
             options.ReportApiVersions = true;
-        }).AddMvc();
+        }).AddMvc().AddApiExplorer(options =>
+        {
+            options.GroupNameFormat = "'v'VVV";
+            options.SubstituteApiVersionInUrl = true;
+        });
+        services.AddSwaggerGen(options =>
+        {
+            options.SwaggerDoc("v1", new OpenApiInfo { Title = "Lash API", Version = "v1" });
+            options.AddSecurityDefinition("bearer", new OpenApiSecurityScheme
+            {
+                Type = SecuritySchemeType.Http,
+                Scheme = "bearer",
+                BearerFormat = "JWT",
+                Description = "Enter an access token."
+            });
+            options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+            {
+                [new OpenApiSecuritySchemeReference("bearer", document)] = []
+            });
+            options.OperationFilter<AllowAnonymousOperationFilter>();
+        });
         services.Configure<ApiBehaviorOptions>(options =>
             options.InvalidModelStateResponseFactory = CreateInvalidModelStateResponse);
         services.PostConfigure<JwtBearerOptions>(

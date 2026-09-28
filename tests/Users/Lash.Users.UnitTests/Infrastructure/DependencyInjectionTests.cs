@@ -9,6 +9,7 @@ using Microsoft.AspNetCore.Authorization.Infrastructure;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.Extensions.Options;
 using WebFlow.Abstractions.Interfaces;
 
@@ -77,6 +78,25 @@ public sealed class DependencyInjectionTests
         Assert.Equal(TimeSpan.FromMinutes(15), identityOptions.Lockout.DefaultLockoutTimeSpan);
         Assert.Equal(EmailCodeTokenProvider<IdentityUserEntity>.ProviderName, identityOptions.Tokens.EmailConfirmationTokenProvider);
         Assert.Equal(EmailCodeTokenProvider<IdentityUserEntity>.ProviderName, identityOptions.Tokens.PasswordResetTokenProvider);
+    }
+
+    [Fact]
+    public async Task AddUsersInfrastructure_WhenMessagingIsConfigured_RegistersItForReadiness()
+    {
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddHealthChecks();
+        services.AddUsersInfrastructure(CreateConfiguration());
+        await using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        var healthCheckOptions = serviceProvider
+            .GetRequiredService<IOptions<HealthCheckServiceOptions>>()
+            .Value;
+        var messagingCheck = Assert.Single(
+            healthCheckOptions.Registrations,
+            registration => registration.Name == "users-messaging");
+
+        Assert.Contains("ready", messagingCheck.Tags);
     }
 
     [Fact]

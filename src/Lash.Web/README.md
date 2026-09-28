@@ -15,7 +15,9 @@
 
 Liveness endpoint: `GET /health/live`. It reports only whether the HTTP process can respond.
 
-Readiness endpoint: `GET /health/ready`. It includes registered dependency health checks.
+Readiness endpoint: `GET /health/ready`. It includes PostgreSQL and the MassTransit/RabbitMQ bus; when either is unavailable, it returns `503 Service Unavailable` so an orchestrator does not send traffic to the replica.
+
+В окружениях Development и Testing документация API доступна по `/swagger`, а OpenAPI v1 — по `/swagger/v1/swagger.json`. Кнопка **Войти** в верхней панели принимает email и пароль, вызывает `POST /api/v1/auth/login` и автоматически добавляет полученный access token в Swagger UI. Пароль не сохраняется в браузерном хранилище. Для ручного ввода токена по-прежнему доступна кнопка **Authorize**; префикс `Bearer` интерфейс добавит сам.
 
 Пример несекретной части конфигурации:
 

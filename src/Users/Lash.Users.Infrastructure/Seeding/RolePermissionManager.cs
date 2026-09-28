@@ -6,7 +6,7 @@ namespace Lash.Users.Infrastructure.Seeding;
 
 public sealed class RolePermissionManager(UsersDbContext dbContext)
 {
-    public async Task AddMissingAsync(
+    public async Task SynchronizeAsync(
         Guid roleId,
         IEnumerable<string> permissionCodes,
         CancellationToken cancellationToken = default)
@@ -28,14 +28,21 @@ public sealed class RolePermissionManager(UsersDbContext dbContext)
                 $"Permissions must be seeded before roles: {string.Join(", ", missingCodes)}.");
         }
 
-        var permissionIds = permissions.Select(permission => permission.Id).ToArray();
-        var existingIds = await dbContext.RolePermissions
-            .Where(item => item.RoleId == roleId && permissionIds.Contains(item.PermissionId))
+        var expectedPermissionIds = permissions
+            .Select(permission => permission.Id)
+            .ToHashSet();
+        var existingRolePermissions = await dbContext.RolePermissions
+            .Where(item => item.RoleId == roleId)
+            .ToListAsync(cancellationToken);
+        var existingPermissionIds = existingRolePermissions
             .Select(item => item.PermissionId)
-            .ToHashSetAsync(cancellationToken);
+            .ToHashSet();
+
+        dbContext.RolePermissions.RemoveRange(
+            existingRolePermissions.Where(item => !expectedPermissionIds.Contains(item.PermissionId)));
 
         var rolePermissions = permissions
-            .Where(permission => !existingIds.Contains(permission.Id))
+            .Where(permission => !existingPermissionIds.Contains(permission.Id))
             .Select(permission => IdentityRolePermission.Create(roleId, permission.Id));
 
         await dbContext.RolePermissions.AddRangeAsync(rolePermissions, cancellationToken);

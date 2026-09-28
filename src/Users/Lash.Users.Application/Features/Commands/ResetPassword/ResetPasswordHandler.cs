@@ -36,14 +36,15 @@ public sealed class ResetPasswordHandler(
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
         }
 
-        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
-        if (!await userSessionLock.TryAcquireAsync(user.Id, cancellationToken))
-        {
-            return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
-        }
         if (!await codeAttemptLimiter.TryAcquireAsync(command.Email, IdentityEmailOperation.PasswordReset, cancellationToken))
         {
             logger.LogWarning("Password reset code attempts were exhausted for user {UserId}.", user.Id);
+            return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
+        }
+
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
+        if (!await userSessionLock.TryAcquireAsync(user.Id, cancellationToken))
+        {
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
         }
         var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
