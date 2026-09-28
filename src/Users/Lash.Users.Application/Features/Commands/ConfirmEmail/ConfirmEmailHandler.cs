@@ -13,6 +13,7 @@ namespace Lash.Users.Application.Features.Commands.ConfirmEmail;
 public sealed class ConfirmEmailHandler(
     IValidator<ConfirmEmailCommand> validator,
     IUserAccountService accounts,
+    IIdentityEmailCodeAttemptLimiter codeAttemptLimiter,
     ILogger<ConfirmEmailHandler> logger) : ICommandHandler<ConfirmEmailCommand>
 {
     public async Task<UnitResult<ErrorList>> Handle(ConfirmEmailCommand command, CancellationToken cancellationToken = default)
@@ -31,12 +32,20 @@ public sealed class ConfirmEmailHandler(
             return UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
         }
 
+        if (!await codeAttemptLimiter.TryAcquireAsync(command.Email, IdentityEmailOperation.EmailConfirmation, cancellationToken))
+        {
+            logger.LogWarning("Email confirmation code attempts were exhausted for user {UserId}.", user.Id);
+            return UsersApplicationErrors.EmailConfirmationCodeInvalid().ToErrorList();
+        }
+
         var confirmation = await accounts.ConfirmEmailAsync(user.Id, command.Code, cancellationToken);
         if (confirmation.IsFailure)
         {
             logger.LogWarning("Email confirmation failed for user {UserId}.", user.Id);
             return confirmation.Error.ToErrorList();
         }
+
+        await codeAttemptLimiter.CompleteAsync(command.Email, IdentityEmailOperation.EmailConfirmation, cancellationToken);
 
         logger.LogInformation("Email confirmed for user {UserId}.", user.Id);
         return UnitResult.Success<ErrorList>();

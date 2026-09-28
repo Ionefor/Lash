@@ -36,8 +36,8 @@ public static class WebApplicationExtensions
         });
         app.UseHttpsRedirection();
         app.UseRouting();
-        app.UseRateLimiter();
         app.UseAuthentication();
+        app.UseRateLimiter();
         app.UseAuthorization();
         return app;
     }
@@ -48,7 +48,10 @@ public static class WebApplicationExtensions
         {
             Predicate = _ => false
         }).AllowAnonymous();
-        app.MapHealthChecks("/health/ready").AllowAnonymous();
+        app.MapHealthChecks("/health/ready", new HealthCheckOptions
+        {
+            Predicate = healthCheck => healthCheck.Tags.Contains("ready")
+        }).AllowAnonymous();
         app.MapControllers();
         return app;
     }

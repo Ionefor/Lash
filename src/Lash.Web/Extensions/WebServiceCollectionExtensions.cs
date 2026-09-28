@@ -1,4 +1,5 @@
 using Lash.Web.ExceptionHandling;
+using Lash.Web.HealthChecks;
 using Lash.Users.Presentation;
 using Serilog;
 
@@ -20,7 +21,11 @@ public static class WebServiceCollectionExtensions
             .AddLashHttp()
             .AddUsersPresentation();
         services.AddLashModules(configuration);
-        services.AddHealthChecks();
+        services.AddHealthChecks()
+            .AddCheck<UsersDatabaseHealthCheck>(
+                "users-database",
+                tags: ["ready"],
+                timeout: TimeSpan.FromSeconds(5));
         services.AddExceptionHandler(options => options.ExceptionHandler = _ => Task.CompletedTask);
         services.AddExceptionHandler<GlobalExceptionHandler>();
         return services;

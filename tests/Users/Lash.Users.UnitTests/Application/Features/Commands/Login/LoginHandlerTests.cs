@@ -18,7 +18,7 @@ public sealed class LoginHandlerTests
     {
         var user = new UserAccount(Guid.NewGuid(), "user@example.com", true);
         var accounts = new Mock<IUserAccountService>();
-        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        accounts.Setup(item => item.FindIdByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user.Id);
         accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Password1!", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<UserAccount, Error>(user));
         var tokenProvider = new Mock<ITokenProvider>();
@@ -74,7 +74,7 @@ public sealed class LoginHandlerTests
     {
         var user = new UserAccount(Guid.NewGuid(), "user@example.com", false);
         var accounts = new Mock<IUserAccountService>();
-        accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
+        accounts.Setup(item => item.FindIdByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user.Id);
         accounts.Setup(item => item.AuthenticateAsync("user@example.com", "Password1!", It.IsAny<CancellationToken>()))
             .ReturnsAsync(Result.Success<UserAccount, Error>(user));
         var tokens = new Mock<ITokenProvider>();

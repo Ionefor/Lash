@@ -32,6 +32,7 @@ internal static class UsersCoreServicesServiceCollectionExtensions
         services.AddScoped<IPasswordResetSender, PasswordResetSender>();
         services.AddScoped<IIdentityEmailRequestStore, PostgresIdentityEmailRequestStore>();
         services.AddScoped<IIdentityEmailRequestLimiter, IdentityEmailRequestLimiter>();
+        services.AddScoped<IIdentityEmailCodeAttemptLimiter, IdentityEmailCodeAttemptLimiter>();
         services.AddScoped<IUnitOfWork, UnitOfWork>();
 
         return services;

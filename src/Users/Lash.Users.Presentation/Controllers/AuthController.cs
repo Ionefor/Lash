@@ -153,6 +153,7 @@ public sealed class AuthController : UsersApplicationController
 
     [Authorize]
     [HttpPost("password/change")]
+    [EnableRateLimiting(UsersRateLimitPolicies.ChangePassword)]
     public async Task<IActionResult> ChangePassword(
         [FromBody] ChangePasswordRequest request,
         [FromServices] ICommandHandler<ChangePasswordCommand> handler,

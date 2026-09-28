@@ -47,10 +47,12 @@ internal static class UsersOptionsExtensions
             .Validate(options => options.EmailConfirmationWindowMinutes > 0, "IdentityEmailRateLimit:EmailConfirmationWindowMinutes must be positive.")
             .Validate(options => options.PasswordResetLimit > 0, "IdentityEmailRateLimit:PasswordResetLimit must be positive.")
             .Validate(options => options.PasswordResetWindowMinutes > 0, "IdentityEmailRateLimit:PasswordResetWindowMinutes must be positive.")
+            .Validate(options => options.CodeVerificationAttemptLimit > 0, "IdentityEmailRateLimit:CodeVerificationAttemptLimit must be positive.")
             .ValidateOnStart();
         services.AddOptions<RabbitMqOptions>()
             .Bind(configuration.GetSection(RabbitMqOptions.SectionName))
             .Validate(options => !string.IsNullOrWhiteSpace(options.Host), "RabbitMq:Host is required.")
+            .Validate(options => options.Port > 0, "RabbitMq:Port must be positive.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.VirtualHost), "RabbitMq:VirtualHost is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.UserName), "RabbitMq:UserName is required.")
             .Validate(options => !string.IsNullOrWhiteSpace(options.Password), "RabbitMq:Password is required.")

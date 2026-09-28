@@ -1,4 +1,5 @@
 using Lash.Users.Application;
+using Lash.Users.Application.Constants;
 using Lash.Users.Infrastructure;
 using Lash.Users.Presentation.RateLimiting;
 using Lash.Web.Http;
@@ -73,6 +74,15 @@ public static class ModuleServiceCollectionExtensions
                     {
                         PermitLimit = 60,
                         Window = TimeSpan.FromMinutes(1),
+                        QueueLimit = 0
+                    }));
+            options.AddPolicy(UsersRateLimitPolicies.ChangePassword, context =>
+                RateLimitPartition.GetFixedWindowLimiter(
+                    context.User.FindFirst(AccessTokenClaimTypes.Sub)?.Value ?? "unknown",
+                    _ => new FixedWindowRateLimiterOptions
+                    {
+                        PermitLimit = 5,
+                        Window = TimeSpan.FromMinutes(15),
                         QueueLimit = 0
                     }));
         });

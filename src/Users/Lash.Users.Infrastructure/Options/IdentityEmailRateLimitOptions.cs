@@ -8,4 +8,5 @@ public sealed class IdentityEmailRateLimitOptions
     public int EmailConfirmationWindowMinutes { get; init; } = 15;
     public int PasswordResetLimit { get; init; } = 3;
     public int PasswordResetWindowMinutes { get; init; } = 60;
+    public int CodeVerificationAttemptLimit { get; init; } = 5;
 }
