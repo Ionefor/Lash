@@ -24,7 +24,7 @@ internal static class UsersMessagingServiceCollectionExtensions
             configurator.UsingRabbitMq((context, bus) =>
             {
                 var rabbitMqOptions = context.GetRequiredService<IOptions<RabbitMqOptions>>().Value;
-                bus.Host(rabbitMqOptions.Host, rabbitMqOptions.VirtualHost, host =>
+                bus.Host(rabbitMqOptions.Host, rabbitMqOptions.Port, rabbitMqOptions.VirtualHost, host =>
                 {
                     host.Username(rabbitMqOptions.UserName);
                     host.Password(rabbitMqOptions.Password);

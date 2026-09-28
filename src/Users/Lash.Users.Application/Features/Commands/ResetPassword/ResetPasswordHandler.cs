@@ -16,6 +16,7 @@ public sealed class ResetPasswordHandler(
     IRefreshSessionManager refreshSessionManager,
     IUnitOfWork unitOfWork,
     IUserSessionLock userSessionLock,
+    IIdentityEmailCodeAttemptLimiter codeAttemptLimiter,
     ILogger<ResetPasswordHandler> logger,
     TimeProvider timeProvider) : ICommandHandler<ResetPasswordCommand>
 {
@@ -40,12 +41,19 @@ public sealed class ResetPasswordHandler(
         {
             return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
         }
+        if (!await codeAttemptLimiter.TryAcquireAsync(command.Email, IdentityEmailOperation.PasswordReset, cancellationToken))
+        {
+            logger.LogWarning("Password reset code attempts were exhausted for user {UserId}.", user.Id);
+            return UsersApplicationErrors.PasswordResetCodeInvalid().ToErrorList();
+        }
         var reset = await accounts.ResetPasswordAsync(user.Id, command.Code, command.Password, cancellationToken);
         if (reset.IsFailure)
         {
             logger.LogWarning("Password reset failed for user {UserId}.", user.Id);
             return reset.Error.ToErrorList();
         }
+
+        await codeAttemptLimiter.CompleteAsync(command.Email, IdentityEmailOperation.PasswordReset, cancellationToken);
 
         await refreshSessionManager.RevokeAllForUserAsync(user.Id, timeProvider.GetUtcNow(), cancellationToken);
         await transaction.CommitAsync(cancellationToken);

@@ -23,7 +23,9 @@ namespace Lash.Users.Infrastructure.Migrations
                     id = table.Column<Guid>(type: "uuid", nullable: false),
                     email_hash = table.Column<string>(type: "character varying(64)", maxLength: 64, nullable: false),
                     operation = table.Column<string>(type: "character varying(32)", maxLength: 32, nullable: false),
-                    requested_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false)
+                    requested_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: false),
+                    failed_attempt_count = table.Column<int>(type: "integer", nullable: false),
+                    invalidated_at = table.Column<DateTimeOffset>(type: "timestamp with time zone", nullable: true)
                 },
                 constraints: table =>
                 {

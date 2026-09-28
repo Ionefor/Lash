@@ -8,6 +8,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Diagnostics;
 using Microsoft.Extensions.Logging;
 using Moq;
+using Npgsql;
 
 namespace Lash.Users.UnitTests.Infrastructure.Identity;
 
@@ -21,6 +22,24 @@ public sealed class UserAccountServiceTests
         roleManager.Setup(manager => manager.RoleExistsAsync("client")).ReturnsAsync(true);
         userManager.Setup(manager => manager.CreateAsync(It.IsAny<IdentityUserEntity>(), It.IsAny<string>()))
             .ReturnsAsync(IdentityResult.Failed(new IdentityError { Code = nameof(IdentityErrorDescriber.DuplicateEmail) }));
+        var service = CreateService(userManager.Object, roleManager);
+
+        var result = await service.CreateAsync("user@example.com", "Password1!", "client");
+
+        Assert.True(result.IsFailure);
+        Assert.Equal(GeneralErrorCodes.ValueAlreadyExists, result.Error.Code);
+        Assert.Equal(ErrorType.Conflict, result.Error.Type);
+        Assert.Equal("email", result.Error.Target);
+    }
+
+    [Fact]
+    public async Task CreateAsync_WhenDatabaseReportsDuplicateEmail_ReturnsConflictForEmail()
+    {
+        var userManager = CreateUserManager();
+        var roleManager = CreateRoleManager();
+        roleManager.Setup(manager => manager.RoleExistsAsync("client")).ReturnsAsync(true);
+        userManager.Setup(manager => manager.CreateAsync(It.IsAny<IdentityUserEntity>(), It.IsAny<string>()))
+            .ThrowsAsync(new DbUpdateException("Duplicate email.", CreateUniqueViolation("EmailIndex")));
         var service = CreateService(userManager.Object, roleManager);
 
         var result = await service.CreateAsync("user@example.com", "Password1!", "client");
@@ -167,4 +186,12 @@ public sealed class UserAccountServiceTests
             Mock.Of<ILookupNormalizer>(),
             new IdentityErrorDescriber(),
             Mock.Of<ILogger<RoleManager<IdentityRoleEntity>>>());
+
+    private static PostgresException CreateUniqueViolation(string constraintName) =>
+        new(
+            "Duplicate key value violates unique constraint.",
+            "ERROR",
+            "ERROR",
+            PostgresErrorCodes.UniqueViolation,
+            constraintName: constraintName);
 }

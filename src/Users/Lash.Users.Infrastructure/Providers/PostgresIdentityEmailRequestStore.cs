@@ -54,4 +54,70 @@ public sealed class PostgresIdentityEmailRequestStore(UsersDbContext dbContext) 
             return true;
         }
     }
+
+    public async Task<bool> TryAcquireCodeAttemptAsync(
+        string emailHash,
+        string operation,
+        DateTimeOffset attemptedAt,
+        int limit,
+        CancellationToken cancellationToken = default)
+    {
+        var ownsTransaction = dbContext.Database.CurrentTransaction is null;
+        await using var transaction = ownsTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await AcquireLockAsync(emailHash, operation, cancellationToken);
+        var challenge = await dbContext.IdentityEmailRequests
+            .Where(request => request.EmailHash == emailHash && request.Operation == operation)
+            .OrderByDescending(request => request.RequestedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (challenge is null || !challenge.TryRecordFailedAttempt(attemptedAt, limit))
+        {
+            if (transaction is not null)
+                await transaction.CommitAsync(cancellationToken);
+
+            return false;
+        }
+
+        await dbContext.SaveChangesAsync(cancellationToken);
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+
+        return true;
+    }
+
+    public async Task CompleteCodeChallengeAsync(
+        string emailHash,
+        string operation,
+        DateTimeOffset completedAt,
+        CancellationToken cancellationToken = default)
+    {
+        var ownsTransaction = dbContext.Database.CurrentTransaction is null;
+        await using var transaction = ownsTransaction
+            ? await dbContext.Database.BeginTransactionAsync(cancellationToken)
+            : null;
+        await AcquireLockAsync(emailHash, operation, cancellationToken);
+        var challenge = await dbContext.IdentityEmailRequests
+            .Where(request => request.EmailHash == emailHash && request.Operation == operation)
+            .OrderByDescending(request => request.RequestedAt)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        if (challenge is not null)
+        {
+            challenge.Complete(completedAt);
+            await dbContext.SaveChangesAsync(cancellationToken);
+        }
+
+        if (transaction is not null)
+            await transaction.CommitAsync(cancellationToken);
+    }
+
+    private async Task AcquireLockAsync(string emailHash, string operation, CancellationToken cancellationToken)
+    {
+        var lockKey = $"{emailHash}:{operation}";
+        await dbContext.Database.ExecuteSqlInterpolatedAsync(
+            $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))",
+            cancellationToken);
+    }
 }

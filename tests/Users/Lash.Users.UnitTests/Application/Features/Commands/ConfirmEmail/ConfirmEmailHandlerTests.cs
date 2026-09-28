@@ -14,7 +14,7 @@ public sealed class ConfirmEmailHandlerTests
     public async Task Handle_WhenCommandIsInvalid_DoesNotAccessAccount()
     {
         var accounts = new Mock<IUserAccountService>();
-        var handler = new ConfirmEmailHandler(new ConfirmEmailCommandValidator(), accounts.Object, NullLogger<ConfirmEmailHandler>.Instance);
+        var handler = new ConfirmEmailHandler(new ConfirmEmailCommandValidator(), accounts.Object, Mock.Of<IIdentityEmailCodeAttemptLimiter>(), NullLogger<ConfirmEmailHandler>.Instance);
 
         var result = await handler.Handle(new ConfirmEmailCommand("", ""));
 
@@ -29,11 +29,14 @@ public sealed class ConfirmEmailHandlerTests
         var accounts = new Mock<IUserAccountService>();
         accounts.Setup(item => item.FindByEmailAsync("user@example.com", It.IsAny<CancellationToken>())).ReturnsAsync(user);
         accounts.Setup(item => item.ConfirmEmailAsync(user.Id, "code", It.IsAny<CancellationToken>())).ReturnsAsync(UnitResult.Success<Error>());
-        var handler = new ConfirmEmailHandler(new ConfirmEmailCommandValidator(), accounts.Object, NullLogger<ConfirmEmailHandler>.Instance);
+        var attempts = new Mock<IIdentityEmailCodeAttemptLimiter>();
+        attempts.Setup(item => item.TryAcquireAsync("user@example.com", IdentityEmailOperation.EmailConfirmation, It.IsAny<CancellationToken>())).ReturnsAsync(true);
+        var handler = new ConfirmEmailHandler(new ConfirmEmailCommandValidator(), accounts.Object, attempts.Object, NullLogger<ConfirmEmailHandler>.Instance);
 
         var result = await handler.Handle(new ConfirmEmailCommand("user@example.com", "code"));
 
         Assert.True(result.IsSuccess);
         accounts.Verify(item => item.ConfirmEmailAsync(user.Id, "code", It.IsAny<CancellationToken>()), Times.Once);
+        attempts.Verify(item => item.CompleteAsync("user@example.com", IdentityEmailOperation.EmailConfirmation, It.IsAny<CancellationToken>()), Times.Once);
     }
 }

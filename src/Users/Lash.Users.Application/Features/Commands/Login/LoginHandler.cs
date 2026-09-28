@@ -28,15 +28,15 @@ public sealed class LoginHandler(
             return validation.ToErrorList();
         }
 
-        var candidate = await accounts.FindByEmailAsync(command.Email, cancellationToken);
-        if (candidate is null)
+        var candidateId = await accounts.FindIdByEmailAsync(command.Email, cancellationToken);
+        if (candidateId is null)
         {
             _ = await accounts.AuthenticateAsync(command.Email, command.Password, cancellationToken);
             return AuthErrors.CredentialsInvalid().ToErrorList();
         }
 
         await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
-        if (!await userSessionLock.TryAcquireAsync(candidate.Id, cancellationToken))
+        if (!await userSessionLock.TryAcquireAsync(candidateId.Value, cancellationToken))
         {
             return AuthErrors.CredentialsInvalid().ToErrorList();
         }

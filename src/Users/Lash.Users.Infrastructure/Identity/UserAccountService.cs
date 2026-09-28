@@ -6,6 +6,8 @@ using Lash.Users.Application.Errors;
 using Lash.Users.Application.Models;
 using Lash.Users.Infrastructure.DbContexts;
 using Microsoft.AspNetCore.Identity;
+using Microsoft.EntityFrameworkCore;
+using Npgsql;
 
 namespace Lash.Users.Infrastructure.Identity;
 
@@ -24,6 +26,16 @@ public sealed class UserAccountService(
     {
         cancellationToken.ThrowIfCancellationRequested();
         return (await userManager.FindByEmailAsync(email)) is { } user ? Map(user) : null;
+    }
+
+    public async Task<Guid?> FindIdByEmailAsync(string email, CancellationToken cancellationToken = default)
+    {
+        cancellationToken.ThrowIfCancellationRequested();
+        return await dbContext.Users
+            .AsNoTracking()
+            .Where(user => user.NormalizedEmail == email.ToUpperInvariant())
+            .Select(user => (Guid?)user.Id)
+            .SingleOrDefaultAsync(cancellationToken);
     }
 
     public async Task<UserAccount?> FindByIdAsync(Guid userId, CancellationToken cancellationToken = default)
@@ -51,7 +63,16 @@ public sealed class UserAccountService(
             return Result.Failure<UserAccount, Error>(GeneralErrors.Failed("Required role is not configured."));
 
         var user = IdentityUserEntity.Create(email);
-        var result = await userManager.CreateAsync(user, password);
+        IdentityResult result;
+        try
+        {
+            result = await userManager.CreateAsync(user, password);
+        }
+        catch (DbUpdateException exception) when (IsDuplicateUserException(exception))
+        {
+            return Result.Failure<UserAccount, Error>(GeneralErrors.ValueAlreadyExists("email"));
+        }
+
         if (!result.Succeeded) return Result.Failure<UserAccount, Error>(Map(result));
 
         var addToRole = await userManager.AddToRoleAsync(user, role);
@@ -127,4 +148,11 @@ public sealed class UserAccountService(
             _ => GeneralErrors.Failed("Unable to process user account.")
         };
     }
+
+    private static bool IsDuplicateUserException(DbUpdateException exception) =>
+        exception.InnerException is PostgresException
+        {
+            SqlState: PostgresErrorCodes.UniqueViolation,
+            ConstraintName: "EmailIndex" or "UserNameIndex"
+        };
 }

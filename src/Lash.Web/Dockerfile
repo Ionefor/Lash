@@ -9,9 +9,9 @@ ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["src/Lash.Web/Lash.Web.csproj", "src/Lash.Web/"]
 COPY ["src/Users/Lash.Users.Application/Lash.Users.Application.csproj", "src/Users/Lash.Users.Application/"]
+COPY ["src/Users/Lash.Users.Contracts/Lash.Users.Contracts.csproj", "src/Users/Lash.Users.Contracts/"]
 COPY ["src/Users/Lash.Users.Domain/Lash.Users.Domain.csproj", "src/Users/Lash.Users.Domain/"]
 COPY ["src/Users/Lash.Users.Infrastructure/Lash.Users.Infrastructure.csproj", "src/Users/Lash.Users.Infrastructure/"]
-COPY ["src/Users/Lash.Users.Messaging/Lash.Users.Messaging.csproj", "src/Users/Lash.Users.Messaging/"]
 COPY ["src/Users/Lash.Users.Presentation/Lash.Users.Presentation.csproj", "src/Users/Lash.Users.Presentation/"]
 RUN dotnet restore "src/Lash.Web/Lash.Web.csproj"
 COPY . .

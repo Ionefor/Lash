@@ -90,6 +90,14 @@ namespace Lash.Users.Infrastructure.Migrations
                         .HasColumnType("character varying(64)")
                         .HasColumnName("email_hash");
 
+                    b.Property<int>("FailedAttemptCount")
+                        .HasColumnType("integer")
+                        .HasColumnName("failed_attempt_count");
+
+                    b.Property<DateTimeOffset?>("InvalidatedAt")
+                        .HasColumnType("timestamp with time zone")
+                        .HasColumnName("invalidated_at");
+
                     b.Property<string>("Operation")
                         .IsRequired()
                         .HasMaxLength(32)
