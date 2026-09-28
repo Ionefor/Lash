@@ -27,9 +27,11 @@ public sealed class ResendEmailConfirmationHandler(
             return validation.ToErrorList();
         }
 
+        await using var transaction = await unitOfWork.BeginTransactionAsync(cancellationToken);
         if (!await limiter.TryAcquireAsync(command.Email, IdentityEmailOperation.EmailConfirmation, cancellationToken))
         {
             logger.LogWarning("Email confirmation resend was rate limited.");
+            await transaction.CommitAsync(cancellationToken);
             return UnitResult.Success<ErrorList>();
         }
 
@@ -44,6 +46,7 @@ public sealed class ResendEmailConfirmationHandler(
         }
 
         await unitOfWork.SaveChangesAsync(cancellationToken);
+        await transaction.CommitAsync(cancellationToken);
         return UnitResult.Success<ErrorList>();
     }
 }

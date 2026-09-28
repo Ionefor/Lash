@@ -17,6 +17,7 @@ namespace Lash.Users.Infrastructure.Migrations
         {
 #pragma warning disable 612, 618
             modelBuilder
+                .HasDefaultSchema("users")
                 .HasAnnotation("ProductVersion", "10.0.12")
                 .HasAnnotation("Relational:MaxIdentifierLength", 63);
 
@@ -73,7 +74,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_refresh_sessions_user_id");
 
-                    b.ToTable("refresh_sessions", (string)null);
+                    b.ToTable("refresh_sessions", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Infrastructure.Identity.IdentityEmailRequest", b =>
@@ -105,7 +106,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("EmailHash", "Operation", "RequestedAt")
                         .HasDatabaseName("ix_identity_email_requests_email_hash_operation_requested_at");
 
-                    b.ToTable("identity_email_requests", (string)null);
+                    b.ToTable("identity_email_requests", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Infrastructure.Identity.IdentityPermission", b =>
@@ -128,7 +129,7 @@ namespace Lash.Users.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_permissions_code");
 
-                    b.ToTable("permissions", (string)null);
+                    b.ToTable("permissions", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Infrastructure.Identity.IdentityRoleEntity", b =>
@@ -160,7 +161,7 @@ namespace Lash.Users.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("RoleNameIndex");
 
-                    b.ToTable("roles", (string)null);
+                    b.ToTable("roles", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Infrastructure.Identity.IdentityRolePermission", b =>
@@ -179,7 +180,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("PermissionId")
                         .HasDatabaseName("ix_role_permissions_permission_id");
 
-                    b.ToTable("role_permissions", (string)null);
+                    b.ToTable("role_permissions", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Infrastructure.Identity.IdentityUserEntity", b =>
@@ -254,13 +255,14 @@ namespace Lash.Users.Infrastructure.Migrations
                         .HasName("pk_users");
 
                     b.HasIndex("NormalizedEmail")
+                        .IsUnique()
                         .HasDatabaseName("EmailIndex");
 
                     b.HasIndex("NormalizedUserName")
                         .IsUnique()
                         .HasDatabaseName("UserNameIndex");
 
-                    b.ToTable("users", (string)null);
+                    b.ToTable("users", "users");
                 });
 
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.InboxState", b =>
@@ -323,7 +325,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("Delivered")
                         .HasDatabaseName("ix_inbox_state_delivered");
 
-                    b.ToTable("inbox_state", (string)null);
+                    b.ToTable("inbox_state", "users");
                 });
 
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxMessage", b =>
@@ -440,7 +442,7 @@ namespace Lash.Users.Infrastructure.Migrations
                         .IsUnique()
                         .HasDatabaseName("ix_outbox_message_inbox_message_id_inbox_consumer_id_sequence_");
 
-                    b.ToTable("outbox_message", (string)null);
+                    b.ToTable("outbox_message", "users");
                 });
 
             modelBuilder.Entity("MassTransit.EntityFrameworkCoreIntegration.OutboxState", b =>
@@ -478,7 +480,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("Created")
                         .HasDatabaseName("ix_outbox_state_created");
 
-                    b.ToTable("outbox_state", (string)null);
+                    b.ToTable("outbox_state", "users");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityRoleClaim<System.Guid>", b =>
@@ -508,7 +510,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_role_claims_role_id");
 
-                    b.ToTable("role_claims", (string)null);
+                    b.ToTable("role_claims", "users");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserClaim<System.Guid>", b =>
@@ -538,7 +540,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_user_claims_user_id");
 
-                    b.ToTable("user_claims", (string)null);
+                    b.ToTable("user_claims", "users");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserLogin<System.Guid>", b =>
@@ -565,7 +567,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("UserId")
                         .HasDatabaseName("ix_user_logins_user_id");
 
-                    b.ToTable("user_logins", (string)null);
+                    b.ToTable("user_logins", "users");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserRole<System.Guid>", b =>
@@ -584,7 +586,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasIndex("RoleId")
                         .HasDatabaseName("ix_user_roles_role_id");
 
-                    b.ToTable("user_roles", (string)null);
+                    b.ToTable("user_roles", "users");
                 });
 
             modelBuilder.Entity("Microsoft.AspNetCore.Identity.IdentityUserToken<System.Guid>", b =>
@@ -608,7 +610,7 @@ namespace Lash.Users.Infrastructure.Migrations
                     b.HasKey("UserId", "LoginProvider", "Name")
                         .HasName("pk_user_tokens");
 
-                    b.ToTable("user_tokens", (string)null);
+                    b.ToTable("user_tokens", "users");
                 });
 
             modelBuilder.Entity("Lash.Users.Domain.RefreshSession", b =>

@@ -6,9 +6,10 @@ namespace Lash.Users.Application.Extensions;
 internal static class PasswordValidationExtensions
 {
     public static IRuleBuilderOptions<T, string> MustBeStrongPassword<T>(
-        this IRuleBuilder<T, string> ruleBuilder)
+        this IRuleBuilderInitial<T, string> ruleBuilder)
     {
         return ruleBuilder
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .WithErrorCode(UsersValidationErrorCodes.PasswordRequired)
             .WithMessage("Password must be provided.")
@@ -37,10 +38,11 @@ internal static class PasswordValidationExtensions
     }
 
     public static IRuleBuilderOptions<T, string> MustMatchPassword<T>(
-        this IRuleBuilder<T, string> ruleBuilder,
+        this IRuleBuilderInitial<T, string> ruleBuilder,
         Func<T, string> passwordSelector)
     {
         return ruleBuilder
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .WithErrorCode(UsersValidationErrorCodes.PasswordConfirmationRequired)
             .WithMessage("Password confirmation must be provided.")

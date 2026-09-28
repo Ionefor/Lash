@@ -2,7 +2,7 @@ namespace Lash.Users.Infrastructure.Options;
 
 public sealed class RabbitMqOptions
 {
-    public const string SectionName = "RabbitMq";
+    public const string SectionName = ConfigurationSectionNames.RabbitMq;
 
     public string Host { get; init; } = string.Empty;
     public string VirtualHost { get; init; } = "/";

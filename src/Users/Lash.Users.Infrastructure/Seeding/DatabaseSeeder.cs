@@ -3,12 +3,12 @@ using Microsoft.Extensions.Logging;
 namespace Lash.Users.Infrastructure.Seeding;
 
 public sealed class DatabaseSeeder(
-    IEnumerable<ISeeder> seeders,
+    ISeederRegistry seederRegistry,
     ILogger<DatabaseSeeder> logger)
 {
     public async Task SeedAsync(CancellationToken cancellationToken = default)
     {
-        foreach (var seeder in seeders.OrderBy(seeder => seeder.Order))
+        foreach (var seeder in seederRegistry.All.OrderBy(seeder => seeder.Order))
         {
             logger.LogInformation("Running Users database seeder {SeederName}.", seeder.GetType().Name);
             await seeder.SeedAsync(cancellationToken);

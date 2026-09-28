@@ -18,7 +18,7 @@ public sealed class PasswordResetRequestedConsumerTests
     {
         var userId = Guid.NewGuid();
         var sender = new Mock<IPasswordResetSender>();
-        sender.Setup(item => item.SendAsync(userId, It.IsAny<CancellationToken>()))
+        sender.Setup(item => item.SendAsync(userId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnitResult.Success<Error>());
         var consumer = new PasswordResetRequestedConsumer(
             sender.Object,
@@ -26,7 +26,7 @@ public sealed class PasswordResetRequestedConsumerTests
 
         await consumer.Consume(CreateContext(userId));
 
-        sender.Verify(item => item.SendAsync(userId, It.IsAny<CancellationToken>()), Times.Once);
+        sender.Verify(item => item.SendAsync(userId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()), Times.Once);
     }
 
     [Fact]
@@ -34,7 +34,7 @@ public sealed class PasswordResetRequestedConsumerTests
     {
         var userId = Guid.NewGuid();
         var sender = new Mock<IPasswordResetSender>();
-        sender.Setup(item => item.SendAsync(userId, It.IsAny<CancellationToken>()))
+        sender.Setup(item => item.SendAsync(userId, It.IsAny<Guid>(), It.IsAny<CancellationToken>()))
             .ReturnsAsync(UnitResult.Failure(ErrorFactory.Create("email.failed", "Failed", ErrorType.Failure)));
         var consumer = new PasswordResetRequestedConsumer(
             sender.Object,

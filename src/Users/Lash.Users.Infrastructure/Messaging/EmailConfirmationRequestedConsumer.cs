@@ -12,7 +12,10 @@ public sealed class EmailConfirmationRequestedConsumer(
 {
     public async Task Consume(ConsumeContext<EmailConfirmationRequested> context)
     {
-        var send = await emailConfirmationSender.SendAsync(context.Message.UserId, context.CancellationToken);
+        var send = await emailConfirmationSender.SendAsync(
+            context.Message.UserId,
+            context.Message.EventId,
+            context.CancellationToken);
         if (send.IsFailure)
         {
             var exception = new InvalidOperationException("Unable to send email confirmation.");

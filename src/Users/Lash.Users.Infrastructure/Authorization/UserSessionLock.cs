@@ -14,7 +14,7 @@ public sealed class UserSessionLock(UsersDbContext dbContext) : IUserSessionLock
         }
 
         var users = await dbContext.Users
-            .FromSqlInterpolated($"SELECT * FROM users WHERE id = {userId} FOR UPDATE")
+            .FromSqlInterpolated($"SELECT * FROM users.users WHERE id = {userId} FOR UPDATE")
             .AsNoTracking()
             .ToArrayAsync(cancellationToken);
 

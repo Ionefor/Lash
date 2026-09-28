@@ -1,8 +1,9 @@
 using Lash.Users.Application.Constants;
+using Lash.Users.Infrastructure.Options;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Options;
 
-namespace Lash.Users.Infrastructure.Options;
+namespace Lash.Users.Infrastructure.Extensions;
 
 public static class OptionsBuilderExtensions
 {
@@ -21,7 +22,7 @@ public static class OptionsBuilderExtensions
         builder
             .Validate(
                 options => !isSeedEnabled || HasValidRolePermissions(options),
-                "RolePermissions must contain known roles and non-empty, unique permission codes when database seed is enabled.")
+                "RolePermissions must contain known roles and permission codes that are non-empty and unique when specified.")
             .ValidateOnStart();
 
     private static bool HasCompleteAdminCredentials(AdminOptions options) =>

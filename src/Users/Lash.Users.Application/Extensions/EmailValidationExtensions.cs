@@ -6,9 +6,10 @@ namespace Lash.Users.Application.Extensions;
 internal static class EmailValidationExtensions
 {
     public static IRuleBuilderOptions<T, string> MustBeValidEmail<T>(
-        this IRuleBuilder<T, string> ruleBuilder)
+        this IRuleBuilderInitial<T, string> ruleBuilder)
     {
         return ruleBuilder
+            .Cascade(CascadeMode.Stop)
             .NotEmpty()
             .WithErrorCode(UsersValidationErrorCodes.EmailRequired)
             .WithMessage("Email must be provided.")

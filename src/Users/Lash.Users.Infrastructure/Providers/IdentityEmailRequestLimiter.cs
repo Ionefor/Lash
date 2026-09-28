@@ -1,13 +1,13 @@
-using System.Security.Cryptography;
-using System.Text;
 using Lash.Users.Application.Abstractions;
-using Lash.Users.Infrastructure.DbContexts;
-using Lash.Users.Infrastructure.Identity;
-using Microsoft.EntityFrameworkCore;
+using Lash.Users.Infrastructure.Options;
+using Microsoft.Extensions.Options;
 
 namespace Lash.Users.Infrastructure.Providers;
 
-public sealed class IdentityEmailRequestLimiter(UsersDbContext dbContext) : IIdentityEmailRequestLimiter
+public sealed class IdentityEmailRequestLimiter(
+    IOptions<IdentityEmailRateLimitOptions> options,
+    TimeProvider timeProvider,
+    IIdentityEmailRequestStore store) : IIdentityEmailRequestLimiter
 {
     public async Task<bool> TryAcquireAsync(
         string email,
@@ -17,39 +17,29 @@ public sealed class IdentityEmailRequestLimiter(UsersDbContext dbContext) : IIde
         if (string.IsNullOrWhiteSpace(email))
             return false;
 
-        var (limit, window) = operation switch
-        {
-            IdentityEmailOperation.EmailConfirmation => (3, TimeSpan.FromMinutes(15)),
-            IdentityEmailOperation.PasswordReset => (3, TimeSpan.FromHours(1)),
-            _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null)
-        };
-        var now = DateTimeOffset.UtcNow;
-        var operationName = operation.ToString();
-        var emailHash = HashEmail(email);
-
-        await using var transaction = await dbContext.Database.BeginTransactionAsync(cancellationToken);
-        var lockKey = $"{emailHash}:{operationName}";
-        await dbContext.Database.ExecuteSqlInterpolatedAsync(
-            $"SELECT pg_advisory_xact_lock(hashtextextended({lockKey}, 0))",
+        var rule = GetRule(options.Value, operation);
+        return await store.TryAcquireAsync(
+            IdentityEmailRequestHasher.Hash(email),
+            operation.ToString(),
+            timeProvider.GetUtcNow(),
+            rule.Limit,
+            rule.Window,
             cancellationToken);
-
-        var requestCount = await dbContext.IdentityEmailRequests.CountAsync(
-            request => request.EmailHash == emailHash &&
-                       request.Operation == operationName &&
-                       request.RequestedAt >= now.Subtract(window),
-            cancellationToken);
-        if (requestCount >= limit)
-        {
-            await transaction.CommitAsync(cancellationToken);
-            return false;
-        }
-
-        dbContext.IdentityEmailRequests.Add(IdentityEmailRequest.Create(emailHash, operationName, now));
-        await dbContext.SaveChangesAsync(cancellationToken);
-        await transaction.CommitAsync(cancellationToken);
-        return true;
     }
 
-    private static string HashEmail(string email) => Convert.ToHexString(SHA256.HashData(
-        Encoding.UTF8.GetBytes(email.Trim().ToUpperInvariant())));
+    private static IdentityEmailRateLimitRule GetRule(
+        IdentityEmailRateLimitOptions options,
+        IdentityEmailOperation operation) =>
+        operation switch
+        {
+            IdentityEmailOperation.EmailConfirmation => new(
+                options.EmailConfirmationLimit,
+                TimeSpan.FromMinutes(options.EmailConfirmationWindowMinutes)),
+            IdentityEmailOperation.PasswordReset => new(
+                options.PasswordResetLimit,
+                TimeSpan.FromMinutes(options.PasswordResetWindowMinutes)),
+            _ => throw new ArgumentOutOfRangeException(nameof(operation), operation, null)
+        };
 }
+
+internal sealed record IdentityEmailRateLimitRule(int Limit, TimeSpan Window);

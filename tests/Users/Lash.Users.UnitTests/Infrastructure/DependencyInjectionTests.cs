@@ -1,6 +1,7 @@
 using Lash.Users.Application.Abstractions;
 using Lash.Users.Infrastructure;
 using Lash.Users.Infrastructure.Authorization;
+using Lash.Users.Infrastructure.Identity;
 using Lash.Users.Infrastructure.Options;
 using Lash.Users.Infrastructure.Seeding;
 using Microsoft.AspNetCore.Authorization;
@@ -15,6 +16,16 @@ namespace Lash.Users.UnitTests.Infrastructure;
 
 public sealed class DependencyInjectionTests
 {
+    [Fact]
+    public void AddUsersInfrastructure_WhenConnectionStringIsWhitespace_RejectsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("ConnectionStrings:UsersDatabase", " "));
+        var services = new ServiceCollection();
+
+        Assert.Throws<InvalidOperationException>(() => services.AddUsersInfrastructure(configuration));
+    }
+
     [Fact]
     public async Task AddUsersInfrastructure_WhenConfigurationIsValid_ResolvesInfrastructureServices()
     {
@@ -64,6 +75,8 @@ public sealed class DependencyInjectionTests
         Assert.True(identityOptions.Lockout.AllowedForNewUsers);
         Assert.Equal(5, identityOptions.Lockout.MaxFailedAccessAttempts);
         Assert.Equal(TimeSpan.FromMinutes(15), identityOptions.Lockout.DefaultLockoutTimeSpan);
+        Assert.Equal(EmailCodeTokenProvider<IdentityUserEntity>.ProviderName, identityOptions.Tokens.EmailConfirmationTokenProvider);
+        Assert.Equal(EmailCodeTokenProvider<IdentityUserEntity>.ProviderName, identityOptions.Tokens.PasswordResetTokenProvider);
     }
 
     [Fact]
@@ -96,6 +109,68 @@ public sealed class DependencyInjectionTests
             serviceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value);
     }
 
+    [Theory]
+    [InlineData("RolePermissions:Permissions: :0", "appointments.read")]
+    [InlineData("RolePermissions:Roles:Client:0", "")]
+    [InlineData("RolePermissions:Roles:Client:0", "appointments.read", "RolePermissions:Roles:Client:1", "appointments.read")]
+    public void AddUsersInfrastructure_WhenSeedPermissionsAreInvalid_RejectsConfiguration(
+        string firstKey,
+        string firstValue,
+        string? secondKey = null,
+        string? secondValue = null)
+    {
+        var values = new List<KeyValuePair<string, string?>>
+        {
+            new("DatabaseInitialization:ApplySeedOnStartup", "true"),
+            new(firstKey, firstValue)
+        };
+        if (secondKey is not null)
+        {
+            values.Add(new KeyValuePair<string, string?>(secondKey, secondValue));
+        }
+
+        var configuration = CreateConfiguration(values.ToArray());
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value);
+    }
+
+    [Fact]
+    public void AddUsersInfrastructure_WhenSeedIsEnabledAndRoleHasNoPermissions_AcceptsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("DatabaseInitialization:ApplySeedOnStartup", "true"));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        var options = serviceProvider.GetRequiredService<IOptions<RolePermissionOptions>>().Value;
+
+        Assert.Empty(options.Roles);
+    }
+
+    [Fact]
+    public void AddUsersInfrastructure_WhenSeedIsEnabledAndAdminCredentialsAreComplete_AcceptsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("DatabaseInitialization:ApplySeedOnStartup", "true"),
+            new KeyValuePair<string, string?>("Admin:Email", "admin@example.com"),
+            new KeyValuePair<string, string?>("Admin:Password", "Password1!"));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        var options = serviceProvider.GetRequiredService<IOptions<AdminOptions>>().Value;
+
+        Assert.Equal("admin@example.com", options.Email);
+    }
+
     [Fact]
     public void AddUsersInfrastructure_WhenRabbitMqHostIsEmpty_RejectsConfiguration()
     {
@@ -108,6 +183,52 @@ public sealed class DependencyInjectionTests
 
         Assert.Throws<OptionsValidationException>(() =>
             serviceProvider.GetRequiredService<IOptions<RabbitMqOptions>>().Value);
+    }
+
+    [Theory]
+    [InlineData("Email:Port", "0")]
+    [InlineData("Email:Port", "65536")]
+    [InlineData("Email:FromAddress", "not-an-email-address")]
+    public void AddUsersInfrastructure_WhenEmailSettingsAreInvalid_RejectsConfiguration(
+        string key,
+        string value)
+    {
+        var configuration = CreateConfiguration(new KeyValuePair<string, string?>(key, value));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<EmailOptions>>().Value);
+    }
+
+    [Fact]
+    public void AddUsersInfrastructure_WhenIdentityEmailRateLimitIsNotPositive_RejectsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("IdentityEmailRateLimit:PasswordResetLimit", "0"));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<IdentityEmailRateLimitOptions>>().Value);
+    }
+
+    [Fact]
+    public void AddUsersInfrastructure_WhenJwtKeyIsWhitespace_RejectsConfiguration()
+    {
+        var configuration = CreateConfiguration(
+            new KeyValuePair<string, string?>("Jwt:Key", new string(' ', 32)));
+        var services = new ServiceCollection();
+        services.AddLogging();
+        services.AddUsersInfrastructure(configuration);
+        using var serviceProvider = services.BuildServiceProvider(validateScopes: true);
+
+        Assert.Throws<OptionsValidationException>(() =>
+            serviceProvider.GetRequiredService<IOptions<JwtOptions>>().Value);
     }
 
     private static IConfiguration CreateConfiguration(params KeyValuePair<string, string?>[] values) =>

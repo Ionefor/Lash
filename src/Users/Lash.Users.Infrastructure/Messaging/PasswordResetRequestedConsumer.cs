@@ -13,7 +13,10 @@ public sealed class PasswordResetRequestedConsumer(
 {
     public async Task Consume(ConsumeContext<PasswordResetRequested> context)
     {
-        var send = await passwordResetSender.SendAsync(context.Message.UserId, context.CancellationToken);
+        var send = await passwordResetSender.SendAsync(
+            context.Message.UserId,
+            context.Message.EventId,
+            context.CancellationToken);
         if (send.IsFailure)
         {
             var exception = new InvalidOperationException("Unable to send password reset email.");
